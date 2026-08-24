@@ -1,0 +1,512 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="stylesheet" href="_ds/nocturne-0a1f65b5-d4be-46fd-97ba-2aba7e36355d/styles.css">
+<script src="_ds/nocturne-0a1f65b5-d4be-46fd-97ba-2aba7e36355d/_ds_bundle.js"></script>
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Noto+Sans+SC:wght@400;500;700&family=JetBrains+Mono:wght@400;500&display=swap">
+<style>
+:root{--color-bg:#ffffff;--color-text:#16191d;--color-divider:#e4e7ec;--color-neutral-100:#0f1216;--color-neutral-200:#2a2f37;--color-neutral-300:#3f4650;--color-neutral-400:#5a616c;--color-neutral-500:#6b7280;--color-neutral-600:#8b929c;--color-neutral-700:#aeb4bd;--color-neutral-800:#d8dce2;--color-neutral-900:#f2f4f7;--color-accent:#1f5eda;--color-accent-100:#eef4ff;--color-accent-200:#d6e4ff;--color-accent-300:#1746a8;--color-accent-400:#1746a8;--color-accent-700:#1f5eda;--color-accent-800:#e3ecfd;--color-accent-900:#f4f7fe;--color-accent-2:#a4560c}
+body{margin:0;background:var(--color-bg);color:var(--color-text);font-family:-apple-system,"Segoe UI","PingFang SC","Microsoft YaHei","Noto Sans SC",sans-serif;-webkit-font-smoothing:antialiased}
+a{color:var(--color-accent);text-underline-offset:3px}
+a:hover{color:var(--color-accent-400)}
+</style>
+</helmet>
+
+<div style="min-height:100vh;background:#f7f8fa;font-family:-apple-system,"Segoe UI","PingFang SC","Microsoft YaHei","Noto Sans SC",sans-serif">
+
+  <sc-if value="{{ bannerOpen }}" hint-placeholder-val="{{ true }}">
+  <div style="background:linear-gradient(90deg,var(--color-accent-900),rgba(248,250,252,.35));border-bottom:1px solid rgba(31,94,218,.2)">
+    <div style="max-width:1160px;margin:0 auto;padding:9px 32px;display:flex;align-items:center;gap:14px;font-size:13px">
+      <span style="font:400 10px/1 'JetBrains Mono',monospace;letter-spacing:.12em;color:var(--color-accent);border:1px solid rgba(31,94,218,.42);border-radius:4px;padding:3px 7px">接单中</span>
+      <span style="color:var(--color-neutral-300)">承接自媒体平台、电商平台数据采集与数据分析报告</span>
+      <a href="#" onClick="{{ nav.hire }}" style="font-size:13px;text-decoration:none;color:var(--color-accent)">查看服务与报价 →</a>
+      <span style="margin-left:auto;display:flex;align-items:center;gap:14px;white-space:nowrap;font:400 12px/1 'JetBrains Mono',monospace;color:var(--color-neutral-400)">
+        <span>微信 your-wechat-id</span>
+        <a href="#" onClick="{{ closeBanner }}" style="text-decoration:none;color:var(--color-neutral-600);font-size:14px">✕</a>
+      </span>
+    </div>
+  </div>
+  </sc-if>
+
+  <div style="position:sticky;top:0;z-index:20;background:rgba(255,255,255,.9);backdrop-filter:blur(10px);border-bottom:1px solid var(--color-divider)">
+    <div style="max-width:1160px;margin:0 auto;padding:14px 32px;display:flex;align-items:center;gap:26px">
+      <a href="#" onClick="{{ nav.home }}" style="display:flex;align-items:center;gap:10px;text-decoration:none;color:var(--color-text);margin-right:auto">
+        <span style="width:22px;height:22px;border:1px solid var(--color-accent);border-radius:6px;display:grid;place-items:center;font:500 11px/1 'JetBrains Mono',monospace;color:var(--color-accent)">S</span>
+        <span style="font:500 15px/1 'JetBrains Mono',monospace;letter-spacing:-.01em">sourcecode.school</span>
+      </a>
+      <a href="#" onClick="{{ nav.home }}" style="font-size:14px;text-decoration:none;color:{{ c.home }}">文章</a>
+      <a href="#" onClick="{{ nav.cases }}" style="font-size:14px;text-decoration:none;color:{{ c.cases }}">案例</a>
+      <a href="#" onClick="{{ nav.archive }}" style="font-size:14px;text-decoration:none;color:{{ c.archive }}">归档</a>
+      <a href="#" onClick="{{ nav.hire }}" style="font-size:14px;text-decoration:none;color:{{ c.hire }}">关于与接单</a>
+      <a href="#" onClick="{{ nav.contact }}" style="font-size:14px;text-decoration:none;color:{{ c.contact }}">联系</a>
+      <a href="#" onClick="{{ nav.hire }}" style="font-size:13px;font-weight:500;text-decoration:none;color:var(--color-accent);border:1px solid var(--color-accent);border-radius:8px;padding:6px 14px" style-hover="background:rgba(31,94,218,.12)">找我接单</a>
+    </div>
+  </div>
+
+  <sc-if value="{{ isHome }}" hint-placeholder-val="{{ true }}">
+  <div>
+    <div style="position:relative;overflow:hidden;border-bottom:1px solid var(--color-divider)">
+      <div style="position:absolute;top:-280px;left:-140px;width:640px;height:640px;border-radius:50%;background:radial-gradient(circle,rgba(31,94,218,.07),transparent 68%);pointer-events:none"></div>
+      <div style="max-width:1160px;margin:0 auto;padding:54px 32px 44px;position:relative">
+        <div style="font:400 11px/1 'JetBrains Mono',monospace;color:var(--color-accent);letter-spacing:.14em;margin-bottom:18px">CRAWLER · REVERSE ENGINEERING · DATA</div>
+        <h1 style="font-size:38px;line-height:1.2;letter-spacing:-.02em;font-weight:500;margin:0 0 14px;max-width:18em">记录爬虫采集思路与逆向分析过程</h1>
+        <p style="max-width:42em;font-size:15.5px;line-height:1.8;color:var(--color-neutral-400);margin:0;text-wrap:pretty">写自媒体与电商平台的数据采集、接口协议还原、参数加密分析，以及采集系统长期运行中遇到的实际问题。文章只写验证过的内容。同时承接相关的数据采集与分析需求。</p>
+      </div>
+    </div>
+
+    <div style="max-width:1160px;margin:0 auto;padding:44px 32px 88px;display:grid;grid-template-columns:minmax(0,1fr) 296px;gap:60px;align-items:start">
+      <div>
+        <div style="display:flex;align-items:baseline;gap:14px;margin-bottom:22px">
+          <h2 style="font-size:13px;font-weight:500;letter-spacing:.1em;text-transform:uppercase;color:var(--color-accent);margin:0">最新文章</h2>
+          <span style="height:1px;flex:1;background:linear-gradient(to right,var(--color-divider),transparent)"></span>
+          <div style="display:flex;gap:6px">
+            <a href="#" onClick="{{ kf.all }}" style="font-size:12.5px;text-decoration:none;padding:5px 12px;border-radius:7px;border:1px solid var(--color-divider);color:{{ ki.all }};background:{{ kbg.all }}">全部</a>
+            <a href="#" onClick="{{ kf.tech }}" style="font-size:12.5px;text-decoration:none;padding:5px 12px;border-radius:7px;border:1px solid var(--color-divider);color:{{ ki.tech }};background:{{ kbg.tech }}">技术</a>
+            <a href="#" onClick="{{ kf.news }}" style="font-size:12.5px;text-decoration:none;padding:5px 12px;border-radius:7px;border:1px solid var(--color-divider);color:{{ ki.news }};background:{{ kbg.news }}">时事</a>
+          </div>
+        </div>
+
+        <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(272px,1fr));gap:24px">
+          <sc-for list="{{ posts }}" as="p" hint-placeholder-count="6">
+            <a href="#" onClick="{{ p.open }}" style="display:flex;flex-direction:column;gap:12px;text-decoration:none;color:inherit;border:1px solid var(--color-divider);border-radius:12px;overflow:hidden;background:#ffffff" style-hover="border-color:rgba(31,94,218,.4)">
+              <div style="aspect-ratio:16/9;background:linear-gradient(140deg,#eef1f5,#e2e7ef);border:1px solid var(--color-divider);display:grid;place-items:center;font:400 10px/1.6 'JetBrains Mono',monospace;color:var(--color-neutral-500);text-align:center">封面占位<br>1200 × 675</div>
+              <div style="padding:0 16px 18px;display:flex;flex-direction:column;gap:9px">
+                <div style="display:flex;align-items:center;gap:9px">
+                  <span style="font-size:10.5px;padding:2px 7px;border-radius:5px;border:1px solid {{ p.kindEdge }};color:{{ p.kindInk }}">{{ p.kindLabel }}</span>
+                  <span style="font-size:11px;color:var(--color-neutral-500)">{{ p.tag }}</span>
+                  <span style="font:400 11px/1 'JetBrains Mono',monospace;color:var(--color-neutral-600);margin-left:auto">{{ p.date }}</span>
+                </div>
+                <div style="font-size:16.5px;font-weight:500;line-height:1.4;letter-spacing:-.01em">{{ p.title }}</div>
+                <div style="font-size:13px;line-height:1.7;color:var(--color-neutral-500);text-wrap:pretty">{{ p.excerpt }}</div>
+              </div>
+            </a>
+          </sc-for>
+        </div>
+
+        <div style="padding-top:26px"><a href="#" onClick="{{ nav.archive }}" style="font-size:13px;text-decoration:none;color:var(--color-accent)">按标签和年份浏览全部 42 篇 →</a></div>
+      </div>
+
+      <div style="position:sticky;top:88px;display:flex;flex-direction:column;gap:22px">
+        <div style="border:1px solid rgba(31,94,218,.26);border-radius:14px;padding:20px;background:linear-gradient(160deg,rgba(238,244,255,.95),rgba(248,250,252,.65))">
+          <div style="font:400 10px/1 'JetBrains Mono',monospace;letter-spacing:.14em;color:var(--color-accent);margin-bottom:12px">AVAILABLE FOR WORK</div>
+          <div style="font-size:17px;font-weight:500;line-height:1.4;margin-bottom:10px">数据采集与分析，可承接</div>
+          <p style="font-size:13px;line-height:1.7;color:var(--color-neutral-400);margin:0 0 16px">自媒体平台数据采集、电商平台商品详情数据、以及配套的数据分析报告。说明目标平台与字段范围即可评估。</p>
+          <div style="display:flex;flex-direction:column;gap:9px;font-size:13px;margin-bottom:16px">
+            <div style="display:flex;justify-content:space-between"><span style="color:var(--color-neutral-600)">微信</span><span style="font-family:'JetBrains Mono',monospace">your-wechat-id</span></div>
+            <div style="display:flex;justify-content:space-between"><span style="color:var(--color-neutral-600)">邮箱</span><span style="font-family:'JetBrains Mono',monospace">hi@sourcecode.school</span></div>
+            <div style="display:flex;justify-content:space-between"><span style="color:var(--color-neutral-600)">响应</span><span>通常一天内</span></div>
+          </div>
+          <a href="#" onClick="{{ nav.hire }}" style="display:block;text-align:center;font-size:14px;font-weight:500;text-decoration:none;color:var(--color-accent);border:1px solid var(--color-accent);border-radius:8px;padding:9px 0" style-hover="background:rgba(31,94,218,.14)">说明需求</a>
+        </div>
+        <div>
+          <div style="font-size:11px;letter-spacing:.1em;text-transform:uppercase;color:var(--color-neutral-600);margin-bottom:12px">标签</div>
+          <div style="display:flex;flex-wrap:wrap;gap:8px">
+            <sc-for list="{{ tags }}" as="t" hint-placeholder-count="6">
+              <a href="#" onClick="{{ nav.archive }}" style="display:inline-flex;align-items:center;gap:4px;white-space:nowrap;font-size:12px;text-decoration:none;color:var(--color-neutral-400);border:1px solid var(--color-divider);border-radius:6px;padding:4px 10px" style-hover="border-color:var(--color-accent);color:var(--color-accent)">{{ t.label }} {{ t.n }}</a>
+            </sc-for>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+  </sc-if>
+
+  <sc-if value="{{ isPost }}" hint-placeholder-val="{{ false }}">
+  <div style="max-width:1160px;margin:0 auto;padding:40px 32px 88px;display:grid;grid-template-columns:minmax(0,1fr) 232px;gap:56px;align-items:start">
+    <article style="max-width:46em">
+      <a href="#" onClick="{{ nav.home }}" style="font:400 12px/1 'JetBrains Mono',monospace;text-decoration:none;color:var(--color-neutral-600)" style-hover="color:var(--color-accent)">← 返回文章列表</a>
+      <div style="display:flex;align-items:center;gap:10px;margin:24px 0 14px">
+        <span style="font-size:11px;padding:4px 11px;border-radius:6px;background:var(--color-accent-800);color:var(--color-accent-100)">JS 逆向</span>
+        <span style="font:400 12px/1 'JetBrains Mono',monospace;color:var(--color-neutral-600)">2026-08-21 · 约 12 分钟</span>
+      </div>
+      <h1 style="font-size:34px;line-height:1.24;letter-spacing:-.02em;font-weight:500;margin:0 0 18px">从一个 sign 参数入手：还原某电商平台商品详情接口的签名算法</h1>
+      <p style="font-size:16px;line-height:1.8;color:var(--color-neutral-300);margin:0 0 26px;text-wrap:pretty">商品详情接口带一个 32 位的 sign，改动任意查询参数都会返回 403。整个过程分三步：定位生成位置、剥离混淆、脱离浏览器环境复现。以下按实际调试顺序记录。</p>
+      <div style="aspect-ratio:2/1;border-radius:12px;background:linear-gradient(140deg,#eef1f5,#e2e7ef);border:1px solid var(--color-divider);border:1px solid var(--color-divider);display:grid;place-items:center;font:400 10px/1.6 'JetBrains Mono',monospace;color:var(--color-neutral-600);text-align:center;margin-bottom:32px">封面占位<br>1600 × 800</div>
+
+      <h2 style="font-size:23px;font-weight:500;letter-spacing:-.015em;margin:0 0 12px">一、请求长什么样</h2>
+      <p style="font-size:15.5px;line-height:1.85;color:var(--color-neutral-300);margin:0 0 20px;text-wrap:pretty">抓包结果里除业务参数外多了 t、nonce、sign 三个字段。t 是毫秒时间戳，nonce 每次刷新都变，sign 长度固定 32 位，大概率是 MD5，但盐值与拼接顺序需要确认。</p>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px;margin:0 0 30px">
+        <div style="border:1px solid var(--color-divider);border-radius:8px;overflow:hidden;background:#f7f8fa">
+          <div style="padding:8px 12px;border-bottom:1px solid var(--color-divider);font:400 10px/1 'JetBrains Mono',monospace;letter-spacing:.1em;color:var(--color-neutral-600)">REQUEST</div>
+          <pre style="margin:0;padding:12px;font-family:'JetBrains Mono',monospace;font-size:12px;line-height:1.75;color:var(--color-neutral-400);overflow-x:auto">GET /api/v2/item?id=1024
+  &amp;t=1755772800123
+  &amp;nonce=8f2c1a
+  &amp;sign=<span style="color:var(--color-accent-400)">c41d8f...9e2b</span></pre>
+        </div>
+        <div style="border:1px solid var(--color-divider);border-radius:8px;overflow:hidden;background:#f7f8fa">
+          <div style="padding:8px 12px;border-bottom:1px solid var(--color-divider);font:400 10px/1 'JetBrains Mono',monospace;letter-spacing:.1em;color:var(--color-neutral-600)">RESPONSE · 改动一个字符后</div>
+          <pre style="margin:0;padding:12px;font-family:'JetBrains Mono',monospace;font-size:12px;line-height:1.75;color:var(--color-neutral-400);overflow-x:auto">HTTP/1.1 403
+{
+  "code": 40301,
+  "msg": "<span style="color:var(--color-accent-400)">invalid signature</span>"
+}</pre>
+        </div>
+      </div>
+
+      <h2 style="font-size:23px;font-weight:500;letter-spacing:-.015em;margin:0 0 12px">二、调用链</h2>
+      <p style="font-size:15.5px;line-height:1.85;color:var(--color-neutral-300);margin:0 0 20px;text-wrap:pretty">XHR 断点打上后向回翻三层堆栈，落点在打包后的请求拦截器。整条链路如下，方括号内为压缩后的函数名。</p>
+      <div style="border:1px solid var(--color-divider);border-radius:12px;padding:22px 20px;background:#f7f8fa;margin:0 0 14px">
+        <div style="display:flex;flex-direction:column;gap:0">
+          <sc-for list="{{ chain }}" as="n" hint-placeholder-count="5">
+            <div style="display:flex;flex-direction:column">
+              <div style="display:flex;align-items:center;gap:14px">
+                <span style="width:26px;height:26px;flex:none;border-radius:7px;border:1px solid {{ n.ring }};display:grid;place-items:center;font:500 11px/1 'JetBrains Mono',monospace;color:{{ n.ink }}">{{ n.i }}</span>
+                <span style="font:500 13.5px/1 'JetBrains Mono',monospace;color:{{ n.ink }}">{{ n.fn }}</span>
+                <span style="font-size:13px;color:var(--color-neutral-500)">{{ n.note }}</span>
+              </div>
+              <span style="width:1px;height:18px;margin-left:13px;background:linear-gradient(to bottom,var(--color-accent-800),transparent)"></span>
+            </div>
+          </sc-for>
+          <div style="display:flex;align-items:center;gap:14px">
+            <span style="width:26px;height:26px;flex:none;border-radius:7px;border:1px solid var(--color-accent);display:grid;place-items:center;font:500 11px/1 'JetBrains Mono',monospace;color:var(--color-accent)">✓</span>
+            <span style="font:500 13.5px/1 'JetBrains Mono',monospace;color:var(--color-accent)">sign</span>
+            <span style="font-size:13px;color:var(--color-neutral-500)">写回 query，请求放行</span>
+          </div>
+        </div>
+      </div>
+      <p style="font-size:12.5px;line-height:1.7;color:var(--color-neutral-600);margin:0 0 30px">直接搜 sign 会有数十处命中，从 CryptoJS.MD5 反向定位更快。</p>
+
+      <div style="border:1px solid var(--color-divider);border-radius:8px;overflow:hidden;background:#f7f8fa;margin:0 0 12px">
+        <div style="display:flex;align-items:center;gap:8px;padding:8px 12px;border-bottom:1px solid var(--color-divider)">
+          <span style="font:400 10px/1 'JetBrains Mono',monospace;letter-spacing:.1em;color:var(--color-neutral-600)">HOOK.JS</span>
+          <span style="font:400 10px/1 'JetBrains Mono',monospace;color:var(--color-neutral-700);margin-left:auto">粘贴到控制台</span>
+        </div>
+        <pre style="margin:0;padding:14px 16px;font-family:'JetBrains Mono',monospace;font-size:12.5px;line-height:1.85;overflow-x:auto;color:var(--color-neutral-200)"><span style="color:var(--color-neutral-600)">// 拦截所有走这个方法的调用，命中即断下
+</span><span style="color:var(--color-accent-400)">const</span> _md5 = window.CryptoJS?.MD5;
+window.CryptoJS.MD5 = <span style="color:var(--color-accent-400)">function</span> (msg) {
+  console.log(<span style="color:#a4560c">'[md5 in]'</span>, msg.toString());
+  <span style="color:var(--color-accent-400)">debugger</span>;
+  <span style="color:var(--color-accent-400)">return</span> _md5.apply(<span style="color:var(--color-accent-400)">this</span>, arguments);
+};</pre>
+      </div>
+      <p style="font-size:12.5px;line-height:1.7;color:var(--color-neutral-600);margin:0 0 30px">命中后控制台打印的明文串即为拼接结果，顺序一目了然。</p>
+
+      <h2 style="font-size:23px;font-weight:500;letter-spacing:-.015em;margin:0 0 12px">三、脱环境复现</h2>
+      <p style="font-size:15.5px;line-height:1.85;color:var(--color-neutral-300);margin:0 0 20px;text-wrap:pretty">明文格式确认为 key=value 按字典序拼接，尾部追加一段硬编码盐。剩下的部分用 Python 几行即可复刻，不需要挂 Node 环境。</p>
+      <div style="border:1px solid var(--color-divider);border-radius:8px;overflow:hidden;background:#f7f8fa;margin:0 0 30px">
+        <div style="padding:8px 12px;border-bottom:1px solid var(--color-divider);font:400 10px/1 'JetBrains Mono',monospace;letter-spacing:.1em;color:var(--color-neutral-600)">SIGN.PY</div>
+        <pre style="margin:0;padding:14px 16px;font-family:'JetBrains Mono',monospace;font-size:12.5px;line-height:1.85;overflow-x:auto;color:var(--color-neutral-200)"><span style="color:var(--color-accent-400)">import</span> hashlib, time, random
+
+SALT = <span style="color:#a4560c">"a3f9...c7"
+
+</span><span style="color:var(--color-accent-400)">def</span> <span style="color:var(--color-accent-300)">make_sign</span>(params: dict) -> str:
+    params[<span style="color:#a4560c">"t"</span>] = <span style="color:var(--color-accent-400)">int</span>(time.time() * 1000)
+    params[<span style="color:#a4560c">"nonce"</span>] = <span style="color:#a4560c">f"</span>{random.getrandbits(<span style="color:#a4560c">24</span>):06x}<span style="color:#a4560c">"
+</span>    raw = <span style="color:#a4560c">"&amp;"</span>.join(<span style="color:#a4560c">f"</span>{k}<span style="color:#a4560c">=</span>{params[k]}<span style="color:#a4560c">"</span> <span style="color:var(--color-accent-400)">for</span> k <span style="color:var(--color-accent-400)">in</span> <span style="color:var(--color-accent-400)">sorted</span>(params))
+    <span style="color:var(--color-accent-400)">return</span> hashlib.md5((raw + SALT).encode()).hexdigest()</pre>
+      </div>
+
+      <div style="border-left:2px solid var(--color-accent);padding:2px 0 2px 18px;margin:0 0 34px">
+        <p style="font-size:15px;line-height:1.8;color:var(--color-accent-300);margin:0">盐值会随版本变动。上线的采集脚本不建议写死，保留一条从最新静态资源中提取的兜底逻辑，长期维护成本更低。</p>
+      </div>
+
+      <div style="height:1px;background:linear-gradient(to right,transparent,var(--color-divider) 48px,var(--color-divider) calc(100% - 48px),transparent);margin:0 0 26px"></div>
+
+      <div style="display:flex;gap:18px;align-items:flex-start;border:1px solid rgba(31,94,218,.24);border-radius:14px;padding:20px;background:linear-gradient(150deg,rgba(238,244,255,.9),rgba(248,250,252,.6))">
+        <div style="width:56px;height:56px;flex:none;border-radius:12px;border:1px dashed rgba(22,25,29,.16);display:grid;place-items:center;font:400 9px/1.3 'JetBrains Mono',monospace;color:var(--color-neutral-600);text-align:center">头像<br>占位</div>
+        <div style="flex:1">
+          <div style="font-size:16px;font-weight:500;margin-bottom:6px">关于作者</div>
+          <p style="font-size:13.5px;line-height:1.75;color:var(--color-neutral-400);margin:0 0 14px">长期从事数据采集与逆向分析，方向集中在自媒体与电商平台的数据获取、接口协议还原与数据分析报告。同类需求可直接联系。</p>
+          <div style="display:flex;flex-wrap:wrap;gap:10px">
+            <a href="#" onClick="{{ nav.hire }}" style="font-size:13px;font-weight:500;text-decoration:none;color:var(--color-accent);border:1px solid var(--color-accent);border-radius:8px;padding:7px 14px" style-hover="background:rgba(31,94,218,.14)">查看服务</a>
+            <a href="#" onClick="{{ nav.contact }}" style="font-size:13px;font-weight:500;text-decoration:none;color:var(--color-text);border:1px solid var(--color-divider);border-radius:8px;padding:7px 14px" style-hover="background:rgba(233,233,237,.07)">联系方式</a>
+          </div>
+        </div>
+      </div>
+    </article>
+
+    <aside style="position:sticky;top:88px">
+      <div style="font-size:11px;letter-spacing:.1em;text-transform:uppercase;color:var(--color-neutral-600);margin-bottom:14px">目录</div>
+      <div style="display:flex;flex-direction:column;gap:11px;border-left:1px solid var(--color-divider);padding-left:14px">
+        <a href="#" style="font-size:13px;text-decoration:none;color:var(--color-accent)">一、请求长什么样</a>
+        <a href="#" style="font-size:13px;text-decoration:none;color:var(--color-neutral-500)" style-hover="color:var(--color-text)">二、调用链</a>
+        <a href="#" style="font-size:13px;text-decoration:none;color:var(--color-neutral-500)" style-hover="color:var(--color-text)">三、脱环境复现</a>
+      </div>
+      <div style="margin:30px 0 14px;font-size:11px;letter-spacing:.1em;text-transform:uppercase;color:var(--color-neutral-600)">相关文章</div>
+      <div style="display:flex;flex-direction:column;gap:14px">
+        <a href="#" style="font-size:13px;line-height:1.55;text-decoration:none;color:var(--color-neutral-400)" style-hover="color:var(--color-accent)">Frida hook 小程序 wx.request，定位加密入口</a>
+        <a href="#" style="font-size:13px;line-height:1.55;text-decoration:none;color:var(--color-neutral-400)" style-hover="color:var(--color-accent)">AST 还原控制流平坦化混淆的思路</a>
+      </div>
+    </aside>
+  </div>
+  </sc-if>
+
+  <sc-if value="{{ isCases }}" hint-placeholder-val="{{ false }}">
+  <div style="max-width:1160px;margin:0 auto;padding:52px 32px 88px">
+    <div style="font:400 11px/1 'JetBrains Mono',monospace;color:var(--color-accent);letter-spacing:.14em;margin-bottom:16px">CASES</div>
+    <h1 style="font-size:34px;line-height:1.2;letter-spacing:-.02em;font-weight:500;margin:0 0 12px">已交付的采集与分析项目</h1>
+    <p style="max-width:42em;font-size:15.5px;line-height:1.8;color:var(--color-neutral-400);margin:0 0 40px">涉及客户信息的部分已做脱敏，只保留数据规模、周期与交付形式。</p>
+    <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(320px,1fr));gap:22px">
+      <sc-for list="{{ cases }}" as="k" hint-placeholder-count="4">
+        <div style="border:1px solid var(--color-divider);border-radius:12px;overflow:hidden;background:#ffffff;display:flex;flex-direction:column" style-hover="border-color:rgba(31,94,218,.4)">
+          <div style="aspect-ratio:16/9;background:linear-gradient(140deg,#eef1f5,#e2e7ef);border:1px solid var(--color-divider);display:grid;place-items:center;font:400 10px/1.6 'JetBrains Mono',monospace;color:var(--color-neutral-600);text-align:center;border-bottom:1px solid var(--color-divider)">项目截图占位<br>1200 × 675</div>
+          <div style="padding:18px;display:flex;flex-direction:column;gap:12px;flex:1">
+            <div style="display:flex;align-items:center;gap:9px">
+              <span style="font-size:11px;padding:3px 9px;border-radius:6px;background:var(--color-accent-800);color:var(--color-accent-100)">{{ k.kind }}</span>
+              <span style="font:400 11px/1 'JetBrains Mono',monospace;color:var(--color-neutral-600);margin-left:auto">{{ k.year }}</span>
+            </div>
+            <div style="font-size:17px;font-weight:500;line-height:1.35">{{ k.title }}</div>
+            <p style="font-size:13px;line-height:1.7;color:var(--color-neutral-500);margin:0;flex:1">{{ k.desc }}</p>
+            <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px;padding-top:12px;border-top:1px solid var(--color-divider)">
+              <div><div style="font:400 10px/1 'JetBrains Mono',monospace;color:var(--color-neutral-600);margin-bottom:5px">数据量</div><div style="font-size:13px">{{ k.volume }}</div></div>
+              <div><div style="font:400 10px/1 'JetBrains Mono',monospace;color:var(--color-neutral-600);margin-bottom:5px">周期</div><div style="font-size:13px">{{ k.time }}</div></div>
+              <div><div style="font:400 10px/1 'JetBrains Mono',monospace;color:var(--color-neutral-600);margin-bottom:5px">交付</div><div style="font-size:13px">{{ k.deliver }}</div></div>
+            </div>
+          </div>
+        </div>
+      </sc-for>
+    </div>
+  </div>
+  </sc-if>
+
+  <sc-if value="{{ isArchive }}" hint-placeholder-val="{{ false }}">
+  <div style="max-width:1160px;margin:0 auto;padding:52px 32px 88px;display:grid;grid-template-columns:minmax(0,1fr) 260px;gap:60px;align-items:start">
+    <div>
+      <div style="font:400 11px/1 'JetBrains Mono',monospace;color:var(--color-accent);letter-spacing:.14em;margin-bottom:16px">ARCHIVE</div>
+      <h1 style="font-size:34px;line-height:1.2;letter-spacing:-.02em;font-weight:500;margin:0 0 36px">全部 42 篇</h1>
+      <sc-for list="{{ archive }}" as="y" hint-placeholder-count="3">
+        <div style="margin-bottom:38px">
+          <div style="display:flex;align-items:baseline;gap:14px;margin-bottom:8px">
+            <span style="font:500 22px/1 'JetBrains Mono',monospace;color:var(--color-accent-700)">{{ y.year }}</span>
+            <span style="font-size:12px;color:var(--color-neutral-600)">{{ y.count }}</span>
+            <span style="height:1px;flex:1;background:linear-gradient(to right,var(--color-divider),transparent)"></span>
+          </div>
+          <sc-for list="{{ y.items }}" as="p" hint-placeholder-count="4">
+            <a href="#" onClick="{{ p.open }}" style="display:grid;grid-template-columns:88px minmax(0,1fr) auto;gap:18px;align-items:baseline;text-decoration:none;color:inherit;padding:12px 8px 12px 0;border-bottom:1px solid var(--color-divider)" style-hover="background:rgba(22,25,29,.035)">
+              <span style="font:400 12px/1 'JetBrains Mono',monospace;color:var(--color-neutral-600)">{{ p.date }}</span>
+              <span style="font-size:15px;line-height:1.5">{{ p.title }}</span>
+              <span style="font-size:11px;color:var(--color-accent)">{{ p.tag }}</span>
+            </a>
+          </sc-for>
+        </div>
+      </sc-for>
+    </div>
+    <div style="position:sticky;top:88px">
+      <div style="font-size:11px;letter-spacing:.1em;text-transform:uppercase;color:var(--color-neutral-600);margin-bottom:14px">按标签</div>
+      <div style="display:flex;flex-wrap:wrap;gap:8px">
+        <sc-for list="{{ tags }}" as="t" hint-placeholder-count="6">
+          <a href="#" style="display:inline-flex;align-items:center;gap:4px;white-space:nowrap;font-size:12.5px;text-decoration:none;color:var(--color-neutral-400);border:1px solid var(--color-divider);border-radius:6px;padding:5px 11px" style-hover="border-color:var(--color-accent);color:var(--color-accent)">{{ t.label }} <span style="font-family:'JetBrains Mono',monospace;color:var(--color-neutral-600)">{{ t.n }}</span></a>
+        </sc-for>
+      </div>
+    </div>
+  </div>
+  </sc-if>
+
+  <sc-if value="{{ isHire }}" hint-placeholder-val="{{ false }}">
+  <div>
+    <div style="border-bottom:1px solid var(--color-divider);position:relative;overflow:hidden">
+      <div style="position:absolute;top:-300px;right:-140px;width:640px;height:640px;border-radius:50%;background:radial-gradient(circle,rgba(31,94,218,.14),transparent 68%);pointer-events:none"></div>
+      <div style="max-width:1160px;margin:0 auto;padding:56px 32px 46px;position:relative;display:grid;grid-template-columns:minmax(0,1fr) auto;gap:44px;align-items:center">
+        <div>
+          <div style="font:400 11px/1 'JetBrains Mono',monospace;color:var(--color-accent);letter-spacing:.14em;margin-bottom:16px">ABOUT · FREELANCE</div>
+          <h1 style="font-size:36px;line-height:1.2;letter-spacing:-.02em;font-weight:500;margin:0 0 14px;max-width:16em">数据采集与分析，长期承接</h1>
+          <p style="max-width:40em;font-size:15.5px;line-height:1.8;color:var(--color-neutral-400);margin:0;text-wrap:pretty">主要方向是自媒体与电商平台的数据获取、接口协议还原，以及在此之上的数据分析与报告输出。需求提供目标平台、字段范围与数据量后即可评估，无法承接的会直接说明。</p>
+        </div>
+        <div style="width:132px;height:132px;flex:none;border-radius:16px;border:1px dashed rgba(22,25,29,.16);display:grid;place-items:center;font:400 10px/1.5 'JetBrains Mono',monospace;color:var(--color-neutral-600);text-align:center">头像占位<br>400 × 400</div>
+      </div>
+    </div>
+
+    <div style="max-width:1160px;margin:0 auto;padding:46px 32px 88px">
+      <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(250px,1fr));gap:16px;margin-bottom:52px">
+        <sc-for list="{{ services }}" as="s" hint-placeholder-count="4">
+          <div style="border:1px solid var(--color-divider);border-radius:12px;padding:20px;background:#ffffff;display:flex;flex-direction:column;gap:8px" style-hover="border-color:rgba(31,94,218,.4)">
+            <div style="font:400 10px/1 'JetBrains Mono',monospace;letter-spacing:.12em;color:var(--color-accent)">{{ s.no }}</div>
+            <div style="font-size:16.5px;font-weight:500;line-height:1.35">{{ s.title }}</div>
+            <p style="font-size:13px;line-height:1.7;color:var(--color-neutral-500);margin:0">{{ s.desc }}</p>
+          </div>
+        </sc-for>
+      </div>
+
+      <div style="display:grid;grid-template-columns:minmax(0,1fr) 340px;gap:60px;align-items:start">
+        <div>
+          <div style="display:flex;align-items:baseline;gap:14px;margin-bottom:22px">
+            <h2 style="font-size:13px;font-weight:500;letter-spacing:.1em;text-transform:uppercase;color:var(--color-accent);margin:0">合作流程</h2>
+            <span style="height:1px;flex:1;background:linear-gradient(to right,var(--color-divider),transparent)"></span>
+          </div>
+          <sc-for list="{{ steps }}" as="st" hint-placeholder-count="4">
+            <div style="display:grid;grid-template-columns:56px minmax(0,1fr);gap:20px;padding:18px 0;border-bottom:1px solid var(--color-divider)">
+              <div style="font:500 26px/1 'JetBrains Mono',monospace;color:var(--color-accent-800)">{{ st.no }}</div>
+              <div>
+                <div style="font-size:16px;font-weight:500;margin-bottom:6px">{{ st.title }}</div>
+                <p style="font-size:13.5px;line-height:1.7;color:var(--color-neutral-500);margin:0;max-width:44em">{{ st.desc }}</p>
+              </div>
+            </div>
+          </sc-for>
+
+          <div style="display:flex;align-items:baseline;gap:14px;margin:42px 0 18px">
+            <h2 style="font-size:13px;font-weight:500;letter-spacing:.1em;text-transform:uppercase;color:var(--color-accent);margin:0">不承接的需求</h2>
+            <span style="height:1px;flex:1;background:linear-gradient(to right,var(--color-divider),transparent)"></span>
+          </div>
+          <ul style="margin:0;padding-left:18px;color:var(--color-neutral-500);font-size:14px;line-height:2">
+            <li>涉及个人隐私数据、账号密码一类的需求</li>
+            <li>目标平台明确禁止且存在法律风险的采集</li>
+            <li>需求边界不清、无法界定交付范围的项目</li>
+          </ul>
+        </div>
+
+        <div style="position:sticky;top:88px;border:1px solid rgba(31,94,218,.26);border-radius:14px;padding:22px;background:linear-gradient(160deg,rgba(238,244,255,.95),rgba(248,250,252,.65))">
+          <div style="font-size:18px;font-weight:500;margin-bottom:8px">说明需求</div>
+          <p style="font-size:13px;line-height:1.7;color:var(--color-neutral-400);margin:0 0 18px">填写后我会在一天内回复，也可以直接加微信。</p>
+          <div style="display:flex;flex-direction:column;gap:12px">
+            <div>
+              <label style="display:block;font-size:12px;margin-bottom:5px;color:var(--color-neutral-300)">称呼</label>
+              <input class="input" placeholder="张三">
+            </div>
+            <div>
+              <label style="display:block;font-size:12px;margin-bottom:5px;color:var(--color-neutral-300)">联系方式</label>
+              <input class="input" placeholder="微信 / 邮箱">
+            </div>
+            <div>
+              <label style="display:block;font-size:12px;margin-bottom:5px;color:var(--color-neutral-300)">需求说明</label>
+              <textarea class="input" placeholder="目标平台、需要的字段、数据量、时间要求"></textarea>
+            </div>
+            <button class="btn btn-primary btn-block">发送</button>
+          </div>
+          <div style="height:1px;background:var(--color-divider);margin:20px 0"></div>
+          <div style="display:flex;flex-direction:column;gap:10px;font-size:13px">
+            <div style="display:flex;justify-content:space-between"><span style="color:var(--color-neutral-600)">微信</span><span style="font-family:'JetBrains Mono',monospace">your-wechat-id</span></div>
+            <div style="display:flex;justify-content:space-between"><span style="color:var(--color-neutral-600)">邮箱</span><span style="font-family:'JetBrains Mono',monospace">hi@sourcecode.school</span></div>
+            <a href="#" onClick="{{ nav.contact }}" style="font-size:13px;text-decoration:none;color:var(--color-accent)">全部联系方式 →</a>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+  </sc-if>
+
+  <sc-if value="{{ isContact }}" hint-placeholder-val="{{ false }}">
+  <div style="max-width:1160px;margin:0 auto;padding:52px 32px 88px">
+    <div style="font:400 11px/1 'JetBrains Mono',monospace;color:var(--color-accent);letter-spacing:.14em;margin-bottom:16px">CONTACT</div>
+    <h1 style="font-size:34px;line-height:1.2;letter-spacing:-.02em;font-weight:500;margin:0 0 12px">联系方式</h1>
+    <p style="max-width:40em;font-size:15.5px;line-height:1.8;color:var(--color-neutral-400);margin:0 0 40px">微信最快，其余渠道也会看。技术问题可以直接问，能答的都会答。</p>
+    <div style="display:grid;grid-template-columns:minmax(0,1fr) 260px;gap:56px;align-items:start">
+      <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(240px,1fr));gap:14px">
+        <sc-for list="{{ channels }}" as="ch" hint-placeholder-count="6">
+          <a href="#" style="display:flex;flex-direction:column;gap:7px;text-decoration:none;color:inherit;border:1px solid var(--color-divider);border-radius:12px;padding:18px;background:#ffffff" style-hover="border-color:var(--color-accent)">
+            <span style="font:400 10px/1 'JetBrains Mono',monospace;letter-spacing:.12em;color:var(--color-accent)">{{ ch.key }}</span>
+            <span style="font:500 15px/1.3 'JetBrains Mono',monospace">{{ ch.value }}</span>
+            <span style="font-size:12.5px;color:var(--color-neutral-600)">{{ ch.note }}</span>
+          </a>
+        </sc-for>
+      </div>
+      <div style="border:1px solid var(--color-divider);border-radius:12px;padding:18px;background:#ffffff;display:flex;flex-direction:column;gap:12px;align-items:center">
+        <div style="width:100%;aspect-ratio:1;border-radius:8px;border:1px dashed rgba(22,25,29,.16);display:grid;place-items:center;font:400 10px/1.6 'JetBrains Mono',monospace;color:var(--color-neutral-600);text-align:center">微信二维码<br>占位</div>
+        <div style="font-size:12.5px;color:var(--color-neutral-500);text-align:center">扫码添加，备注来意</div>
+      </div>
+    </div>
+  </div>
+  </sc-if>
+
+  <div style="border-top:1px solid var(--color-divider)">
+    <div style="max-width:1160px;margin:0 auto;padding:26px 32px;display:flex;flex-wrap:wrap;gap:16px;align-items:center;font:400 12px/1 'JetBrains Mono',monospace;color:var(--color-neutral-700)">
+      <span>© 2026 sourcecode.school</span>
+      <span style="margin-left:auto">技术内容仅供学习交流，请勿用于非法用途</span>
+    </div>
+  </div>
+</div>
+
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props="{&quot;showBanner&quot;:{&quot;editor&quot;:&quot;boolean&quot;,&quot;default&quot;:true,&quot;tsType&quot;:&quot;boolean&quot;,&quot;section&quot;:&quot;转化&quot;}}">
+class Component extends DCLogic {
+  state = { page: 'home', home: 'a', banner: true, kind: 'all' };
+  go(p) { this.setState({ page: p }); window.scrollTo(0, 0); }
+  renderVals() {
+    const p = this.state.page, hv = this.state.home;
+    const on = (t) => (e) => { e.preventDefault(); this.go(t); };
+    const setV = (t) => (e) => { e.preventDefault(); this.setState({ home: t }); };
+    const raw = [
+      { date: '2026-08-21', kind: 'tech', tag: 'JS 逆向', read: '12 min', title: '从一个 sign 参数入手：还原某电商平台商品详情接口的签名算法', excerpt: '改动任意查询参数都返回 403。按定位生成位置、剥离混淆、脱环境复现三步推进，最终用几行 Python 复刻。' },
+      { date: '2026-08-16', kind: 'news', tag: '政策', read: '6 min', title: '数据合规新规落地后，公开数据采集的边界变化', excerpt: '梳理条文中与自动化采集直接相关的部分，以及在实际项目里需要调整的取数范围与留存周期。' },
+      { date: '2026-08-09', kind: 'tech', tag: '抓包', read: '9 min', title: 'Frida hook 小程序 wx.request，定位加密入口', excerpt: '小程序包解出来是大段混淆代码，与其静态阅读，不如在运行时把参数打印出来。附可直接使用的脚本。' },
+      { date: '2026-08-02', kind: 'news', tag: '行业', read: '7 min', title: '主流平台接口收紧这一年：几个可观察到的趋势', excerpt: '开放接口减少、风控前移、客户端加密普及。对采集方来说，成本结构和技术选型都在变。' },
+      { date: '2026-07-28', kind: 'tech', tag: '风控', read: '15 min', title: '指纹、TLS 与请求时序：三类风控信号的实际表现', excerpt: '同一份代码本地可运行、部署后被封，问题通常不在代码本身。逐项拆解可被检测的差异及其消除方式。' },
+      { date: '2026-07-15', kind: 'tech', tag: 'JS 逆向', read: '18 min', title: 'AST 还原控制流平坦化混淆的思路', excerpt: '不直接阅读 switch 分发器，用 babel 遍历将状态机还原为顺序代码。附可复用的插件骨架。' },
+      { date: '2026-06-30', kind: 'tech', tag: '工程化', read: '11 min', title: '一套运行两年的采集系统，调度与去重上的实际问题', excerpt: '爬虫写完只是开始。任务调度、失败重试、增量去重、代理池健康度，才是长期维护的主要成本。' },
+      { date: '2026-06-12', kind: 'tech', tag: '数据分析', read: '10 min', title: '采集之后：把商品详情数据整理成一份可用的分析报告', excerpt: '字段清洗、价格区间分布、店铺集中度与上新节奏，交付给客户的报告通常包含哪些内容。' }
+    ];
+    const kd = this.state.kind;
+    const deco = (r) => ({
+      ...r, open: on('post'),
+      kindLabel: r.kind === 'news' ? '时事' : '技术',
+      kindInk: r.kind === 'news' ? '#a4560c' : 'var(--color-accent-300)',
+      kindEdge: r.kind === 'news' ? 'rgba(164,86,12,.32)' : 'rgba(31,94,218,.3)'
+    });
+    const posts = raw.filter(r => kd === 'all' || r.kind === kd).map(deco);
+    const kf = (t) => (e) => { e.preventDefault(); this.setState({ kind: t }); };
+    const ki = (t) => kd === t ? 'var(--color-text)' : 'var(--color-neutral-500)';
+    const kbg = (t) => kd === t ? 'var(--color-accent-900)' : 'transparent';
+    const chain = [
+      { i: '1', fn: 'r.request()', note: '业务层发起请求', ink: 'var(--color-neutral-300)', ring: 'var(--color-neutral-800)' },
+      { i: '2', fn: 'e.interceptors', note: '统一拦截器，注入公共参数', ink: 'var(--color-neutral-300)', ring: 'var(--color-neutral-800)' },
+      { i: '3', fn: 'n(t, o)', note: '按字典序拼接 key=value', ink: 'var(--color-neutral-200)', ring: 'var(--color-neutral-700)' },
+      { i: '4', fn: 'a(raw + SALT)', note: '追加硬编码盐值', ink: 'var(--color-accent-300)', ring: 'var(--color-accent-700)' },
+      { i: '5', fn: 'CryptoJS.MD5', note: '取 32 位小写摘要', ink: 'var(--color-accent-300)', ring: 'var(--color-accent-700)' }
+    ];
+    const tags = [
+      { label: 'JS 逆向', n: 14 }, { label: '抓包', n: 9 }, { label: '风控', n: 7 },
+      { label: '数据分析', n: 6 }, { label: '电商平台', n: 5 }, { label: '自媒体平台', n: 5 },
+      { label: 'Frida', n: 4 }, { label: '工程化', n: 3 }
+    ];
+    const services = [
+      { no: '01', title: '自媒体平台数据采集', desc: '账号、内容、互动与增长数据的批量采集，支持定时增量更新。' },
+      { no: '02', title: '电商平台商品详情数据', desc: '商品详情、价格、库存、评价与店铺维度字段，交付结构化数据或可运行脚本。' },
+      { no: '03', title: '数据分析与报告', desc: '在采集数据之上做清洗、指标计算与趋势分析，输出可直接使用的分析报告。' },
+      { no: '04', title: '其他平台采集与维护', desc: '接口协议还原、加密参数分析，以及既有采集系统的排查与长期维护。' }
+    ];
+    const steps = [
+      { no: '01', title: '说明需求', desc: '目标平台、需要的字段、数据量与时间要求。信息越具体，评估越快。' },
+      { no: '02', title: '可行性评估', desc: '实际查看目标平台的防护强度，给出能否承接、周期与报价。无法承接会直接说明。' },
+      { no: '03', title: '开发与验证', desc: '中途提供一次可运行的中间版本，先跑通小批量数据确认字段无误，再执行全量。' },
+      { no: '04', title: '交付与售后', desc: '交付代码、数据与运行说明。一个月内因目标平台小幅改动导致的问题免费修复。' }
+    ];
+    const cases = [
+      { kind: '电商平台', year: '2026', title: '多平台商品详情与价格监控', desc: '按类目采集商品详情与历史价格，每日增量更新，异常波动自动告警。', volume: '380 万条', time: '3 周', deliver: '数据库 + 脚本' },
+      { kind: '自媒体平台', year: '2026', title: '账号内容与互动数据看板', desc: '定向采集账号发布数据与互动指标，按周输出增长与内容表现分析。', volume: '12 万条 / 周', time: '2 周', deliver: '数据 + 周报' },
+      { kind: '数据分析', year: '2025', title: '类目竞争格局分析报告', desc: '在采集数据上做店铺集中度、价格带分布与上新节奏分析，输出决策用报告。', volume: '90 万条', time: '10 天', deliver: 'PDF 报告' },
+      { kind: '系统维护', year: '2025', title: '既有采集系统接手与改造', desc: '原系统因平台改版大面积失效，重写解析层与调度，恢复稳定运行。', volume: '日均 40 万', time: '按月维护', deliver: '代码 + 运维' }
+    ];
+    const archive = [
+      { year: '2026', count: '18 篇', items: raw.slice(0, 4).map(r => ({ ...r, open: on('post') })) },
+      { year: '2025', count: '16 篇', items: raw.slice(4).map(r => ({ ...r, open: on('post') })) }
+    ];
+    const channels = [
+      { key: 'WECHAT', value: 'your-wechat-id', note: '最快，备注来意' },
+      { key: 'QQ', value: '10001000', note: '常在线' },
+      { key: 'EMAIL', value: 'hi@sourcecode.school', note: '正式需求走邮件' },
+      { key: 'TELEGRAM', value: '@yourname', note: '海外客户' },
+      { key: 'GITHUB', value: 'github.com/yourname', note: '开源代码与工具' },
+      { key: '知乎 / 掘金 / CSDN', value: '@yourname', note: '同步部分文章' }
+    ];
+    const hi = (k) => p === k ? 'var(--color-accent)' : 'var(--color-neutral-400)';
+    const vi = (k) => hv === k ? 'var(--color-accent)' : 'var(--color-neutral-400)';
+    const vbx = (k) => hv === k ? 'inset 0 0 0 1px var(--color-accent)' : 'none';
+    return {
+      isHome: p === 'home', isPost: p === 'post', isCases: p === 'cases',
+      isArchive: p === 'archive', isHire: p === 'hire', isContact: p === 'contact',
+      isA: hv === 'a', isB: hv === 'b', isC: hv === 'c',
+      bannerOpen: this.state.banner && (this.props.showBanner ?? true),
+      closeBanner: (e) => { e.preventDefault(); this.setState({ banner: false }); },
+      nav: { home: on('home'), post: on('post'), cases: on('cases'), archive: on('archive'), hire: on('hire'), contact: on('contact') },
+      variant: { a: setV('a'), b: setV('b'), c: setV('c') },
+      c: { home: hi('home'), cases: hi('cases'), archive: hi('archive'), hire: hi('hire'), contact: hi('contact') },
+      v: { a: vi('a'), b: vi('b'), c: vi('c') },
+      vb: { a: vbx('a'), b: vbx('b'), c: vbx('c') },
+      kf: { all: kf('all'), tech: kf('tech'), news: kf('news') },
+      ki: { all: ki('all'), tech: ki('tech'), news: ki('news') },
+      kbg: { all: kbg('all'), tech: kbg('tech'), news: kbg('news') },
+      posts, lead: posts[0], rest: posts.slice(1), chain, tags, services, steps, cases, archive, channels
+    };
+  }
+}
+
+</script>
+</body>
+</html>

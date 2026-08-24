@@ -1,0 +1,344 @@
+@import 'tailwindcss';
+
+/*
+ * 颜色以裸 CSS 变量定义，@theme inline 让 Tailwind 工具类输出 var() 引用，
+ * 这样深色模式只需要覆盖变量，不用给每个元素写 dark: 变体。
+ */
+:root {
+  --bg: #f7f8fa;
+  --surface: #ffffff;
+  --raised: #f7f8fa;
+  --ink: #16191d;
+  --ink-soft: #3f4650;
+  --muted: #5a616c;
+  --faint: #8b929c;
+  --line: #e4e7ec;
+  --line-soft: #eef0f3;
+
+  --brand: #1f5eda;
+  --brand-deep: #1746a8;
+  --brand-tint: #eef4ff;
+  --brand-wash: #f4f7fe;
+  --brand-edge: rgba(31, 94, 218, 0.26);
+
+  /* 时事栏目的区分色，避免整站只有一个蓝 */
+  --amber: #a4560c;
+  --amber-edge: rgba(164, 86, 12, 0.32);
+
+  --selection: rgba(31, 94, 218, 0.16);
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg: #0f1216;
+    --surface: #16191d;
+    --raised: #1b1f25;
+    --ink: #e8eaed;
+    --ink-soft: #c2c7ce;
+    --muted: #9aa1ab;
+    --faint: #6b7280;
+    --line: #272c33;
+    --line-soft: #1f242a;
+
+    --brand: #6c9bff;
+    --brand-deep: #a8c3ff;
+    --brand-tint: rgba(31, 94, 218, 0.14);
+    --brand-wash: rgba(31, 94, 218, 0.07);
+    --brand-edge: rgba(108, 155, 255, 0.3);
+
+    --amber: #e0a260;
+    --amber-edge: rgba(224, 162, 96, 0.32);
+
+    --selection: rgba(108, 155, 255, 0.24);
+  }
+}
+
+@theme inline {
+  --color-bg: var(--bg);
+  --color-surface: var(--surface);
+  --color-raised: var(--raised);
+  --color-ink: var(--ink);
+  --color-ink-soft: var(--ink-soft);
+  --color-muted: var(--muted);
+  --color-faint: var(--faint);
+  --color-line: var(--line);
+  --color-line-soft: var(--line-soft);
+  --color-brand: var(--brand);
+  --color-brand-deep: var(--brand-deep);
+  --color-brand-tint: var(--brand-tint);
+  --color-brand-wash: var(--brand-wash);
+  --color-brand-edge: var(--brand-edge);
+  --color-amber: var(--amber);
+  --color-amber-edge: var(--amber-edge);
+
+  --font-sans: var(--font-cjk);
+  --font-mono: var(--font-jetbrains), ui-monospace, SFMono-Regular, monospace;
+}
+
+@layer base {
+  :root {
+    /* 中文不引 webfont：CJK 字重全走系统栈，避免几 MB 的字体拖慢国内首屏 */
+    --font-cjk: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'PingFang SC',
+      'Hiragino Sans GB', 'Microsoft YaHei', 'Noto Sans SC', sans-serif;
+    color-scheme: light dark;
+  }
+
+  html {
+    scroll-behavior: smooth;
+    /* 目录锚点跳转时不被吸顶导航盖住 */
+    scroll-padding-top: 5.5rem;
+  }
+
+  body {
+    background: var(--bg);
+    color: var(--ink);
+    font-family: var(--font-cjk);
+    -webkit-font-smoothing: antialiased;
+    text-rendering: optimizeLegibility;
+  }
+
+  ::selection {
+    background: var(--selection);
+  }
+
+  a {
+    color: inherit;
+    text-decoration: none;
+  }
+
+  :focus-visible {
+    outline: 2px solid var(--brand);
+    outline-offset: 2px;
+    border-radius: 3px;
+  }
+}
+
+/* ---------------------------------------------------------------
+ * 文章正文
+ * ------------------------------------------------------------- */
+
+.prose {
+  color: var(--ink-soft);
+  font-size: 15.5px;
+  line-height: 1.85;
+}
+
+.prose > * + * {
+  margin-top: 1.15em;
+}
+
+.prose h2,
+.prose h3 {
+  color: var(--ink);
+  font-weight: 500;
+  letter-spacing: -0.015em;
+  scroll-margin-top: 5.5rem;
+}
+
+.prose h2 {
+  font-size: 23px;
+  line-height: 1.4;
+  margin-top: 2.4em;
+  padding-top: 0.2em;
+}
+
+.prose h3 {
+  font-size: 18px;
+  line-height: 1.5;
+  margin-top: 1.9em;
+}
+
+/* rehype-autolink-headings 生成的锚点，悬停标题时才显形 */
+.prose .heading-anchor {
+  color: var(--faint);
+  margin-left: 0.4em;
+  font-weight: 400;
+  opacity: 0;
+  transition: opacity 0.12s ease;
+}
+
+.prose h2:hover .heading-anchor,
+.prose h3:hover .heading-anchor,
+.prose .heading-anchor:focus-visible {
+  opacity: 1;
+}
+
+.prose p {
+  text-wrap: pretty;
+}
+
+.prose a:not(.heading-anchor) {
+  color: var(--brand);
+  text-decoration: underline;
+  text-decoration-thickness: 1px;
+  text-underline-offset: 3px;
+  text-decoration-color: var(--brand-edge);
+}
+
+.prose a:not(.heading-anchor):hover {
+  text-decoration-color: var(--brand);
+}
+
+.prose strong {
+  color: var(--ink);
+  font-weight: 600;
+}
+
+.prose ul,
+.prose ol {
+  padding-left: 1.35em;
+}
+
+.prose ul {
+  list-style: disc;
+}
+
+.prose ol {
+  list-style: decimal;
+}
+
+.prose li::marker {
+  color: var(--faint);
+}
+
+.prose li + li {
+  margin-top: 0.4em;
+}
+
+.prose blockquote {
+  border-left: 2px solid var(--brand);
+  padding: 0.1em 0 0.1em 1.1em;
+  color: var(--ink);
+}
+
+.prose hr {
+  border: 0;
+  height: 1px;
+  background: var(--line);
+  margin: 2.6em 0;
+}
+
+.prose img {
+  max-width: 100%;
+  height: auto;
+  border-radius: 10px;
+  border: 1px solid var(--line);
+}
+
+/* 行内代码 */
+.prose :not(pre) > code {
+  font-family: var(--font-mono);
+  font-size: 0.875em;
+  background: var(--raised);
+  border: 1px solid var(--line);
+  border-radius: 4px;
+  padding: 0.12em 0.36em;
+  color: var(--ink);
+  word-break: break-word;
+}
+
+/* 宽内容自己横向滚动，页面本身不产生横向滚动条 */
+.prose table {
+  display: block;
+  width: 100%;
+  overflow-x: auto;
+  border-collapse: collapse;
+  font-size: 14px;
+}
+
+.prose th,
+.prose td {
+  border: 1px solid var(--line);
+  padding: 8px 12px;
+  text-align: left;
+}
+
+.prose th {
+  background: var(--raised);
+  color: var(--ink);
+  font-weight: 500;
+  white-space: nowrap;
+}
+
+/* ---------------------------------------------------------------
+ * 代码块（rehype-pretty-code + shiki，构建时高亮，不带客户端 JS）
+ * ------------------------------------------------------------- */
+
+figure[data-rehype-pretty-code-figure] {
+  margin: 1.6em 0;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  overflow: hidden;
+  background: var(--raised);
+}
+
+figure[data-rehype-pretty-code-figure] figcaption[data-rehype-pretty-code-title] {
+  padding: 8px 14px;
+  border-bottom: 1px solid var(--line);
+  font-family: var(--font-mono);
+  font-size: 11px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+
+figure[data-rehype-pretty-code-figure] pre {
+  margin: 0;
+  padding: 14px 0;
+  overflow-x: auto;
+  background: transparent !important;
+  font-size: 12.75px;
+  line-height: 1.8;
+}
+
+figure[data-rehype-pretty-code-figure] code {
+  font-family: var(--font-mono);
+  display: grid;
+  background: transparent !important;
+}
+
+[data-line] {
+  padding: 0 16px;
+  border-left: 2px solid transparent;
+}
+
+/* ```js {3-5} 标记的行 */
+[data-highlighted-line] {
+  background: var(--brand-tint);
+  border-left-color: var(--brand);
+}
+
+/* ```js /token/ 标记的词 */
+[data-highlighted-chars] {
+  background: var(--brand-tint);
+  border-radius: 3px;
+  padding: 0.1em 0.25em;
+  box-shadow: 0 0 0 1px var(--brand-edge);
+}
+
+code[data-line-numbers] {
+  counter-reset: line;
+}
+
+code[data-line-numbers] > [data-line]::before {
+  counter-increment: line;
+  content: counter(line);
+  display: inline-block;
+  width: 1.6rem;
+  margin-right: 1rem;
+  text-align: right;
+  color: var(--faint);
+}
+
+/* rehype-pretty-code 双主题：浅色用 --shiki-light，深色切到 --shiki-dark */
+.shiki,
+.shiki span {
+  color: var(--shiki-light);
+}
+
+@media (prefers-color-scheme: dark) {
+  .shiki,
+  .shiki span {
+    color: var(--shiki-dark);
+  }
+}

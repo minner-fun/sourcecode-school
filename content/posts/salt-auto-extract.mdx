@@ -1,0 +1,69 @@
+---
+title: 盐值随版本变动怎么办：从静态资源里自动提取
+date: 2026-08-24
+category: reverse
+tags: [JS 逆向, 工程化, 电商平台]
+excerpt: 写死盐值的采集脚本会在对方发版当天全线失效。把提取动作做成运行时的一步，比每次手工重新逆向划算得多。
+series: sign-reverse
+seriesTitle: 签名参数还原
+seriesOrder: 2
+---
+
+上一篇把签名算法还原成了几行 Python，但里面那个 `SALT = "a3f9...c7"` 是硬编码的。对方一发版，这行就废了，脚本会在毫无征兆的情况下全线 403。
+
+## 为什么不建议写死
+
+盐值变动的频率比想象中高。它通常和前端构建产物绑在一起，对方做一次常规发布就可能换掉，而且不会有任何公告。写死的后果是故障是被下游发现的——数据断了一天才有人报，排查还得从头再逆一遍。
+
+更实际的做法是把提取这一步做进脚本：启动时拉一次入口 HTML，找到当前版本的 JS 资源，从里面把盐值抠出来。
+
+## 定位资源与提取
+
+入口页面里的资源地址一般带 hash，先取回 HTML 再按模式匹配：
+
+```python title="salt.py" showLineNumbers
+import re
+import requests
+
+ENTRY = "https://example.com/item/1024"
+# 盐值出现在压缩代码里，形如 t+"a3f9c7d2e1b0"，长度固定 32 位十六进制
+SALT_RE = re.compile(r'\+\s*"([0-9a-f]{32})"')
+ASSET_RE = re.compile(r'src="([^"]+/vendor\.[0-9a-f]+\.js)"')
+
+
+def fetch_salt(session: requests.Session) -> str:
+    html = session.get(ENTRY, timeout=15).text
+    asset = ASSET_RE.search(html)
+    if not asset:
+        raise RuntimeError("没找到 vendor 资源，入口页结构可能变了")
+
+    code = session.get(asset.group(1), timeout=15).text
+    candidates = SALT_RE.findall(code)
+    if not candidates:
+        raise RuntimeError("资源里没匹配到盐值，正则需要重新校准")
+    return candidates[0]
+```
+
+两处 `raise` 是关键。提取失败必须立刻报错，而不是回退到一个旧值继续跑——回退会让脚本带着错误的盐持续请求，直到触发风控，比直接失败更难排查。
+
+## 加一层缓存和自检
+
+每次请求都去拉一遍静态资源既慢又扎眼。合理的做法是缓存，签名失败时才失效重取：
+
+<CallChain steps={[
+  { fn: 'get_salt()', note: '优先读缓存' },
+  { fn: 'fetch_salt()', note: '缓存为空时拉取静态资源' },
+  { fn: 'request()', note: '带签名发起业务请求' },
+  { fn: 'on 40301', note: '签名失败，清缓存并重试一次' },
+  { fn: 'alert()', note: '重试仍失败，说明提取逻辑本身失效', done: true },
+]} />
+
+只重试一次。如果新提取的盐仍然签不过，说明算法或拼接顺序也变了，这时候应该报警让人介入，而不是让脚本继续循环重试。
+
+<Note type="warn">
+自动提取依赖的是正则匹配代码特征，本质上仍然是脆弱的。它把「每次发版手工重逆」降级成「大改版才需要人介入」，不是一劳永逸。正则要写得足够具体，宁可匹配不到直接报错，也不要匹配到一个错误的值。
+</Note>
+
+## 小结
+
+采集脚本的维护成本，大部分不在首次逆向，而在对方每次改动之后的响应速度。把易变的部分从代码里挪到运行时，再给每个提取点配一个明确的失败信号，能把大部分「悄无声息地坏掉」变成「立刻知道坏了」。这是长期跑的采集系统和一次性脚本最主要的区别。
