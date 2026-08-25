@@ -28,7 +28,7 @@ export function CurlConverter() {
   }
 
   const box =
-    'h-[420px] w-full resize-none rounded-xl border border-line bg-raised p-4 font-mono text-[12.5px] leading-relaxed text-ink outline-none transition-colors placeholder:text-faint focus:border-brand'
+    'h-[420px] w-full resize-none border border-line bg-raised p-4 font-mono text-[12.5px] leading-relaxed text-ink outline-none transition-colors placeholder:text-faint focus:border-brand'
 
   return (
     <div className="grid gap-5 lg:grid-cols-2">
@@ -83,7 +83,7 @@ export function CurlConverter() {
         </div>
         <pre className={`${box} overflow-auto`}>
           {error ? (
-            <span className="text-amber">{error}</span>
+            <span className="text-fail">{error}</span>
           ) : (
             code || <span className="text-faint">左侧粘贴 curl 后自动生成。</span>
           )}

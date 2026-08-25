@@ -3,6 +3,7 @@
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 import { nav, site } from '@/lib/site'
+import { ThemeToggle } from './ThemeToggle'
 
 export function Header() {
   const pathname = usePathname()
@@ -11,13 +12,12 @@ export function Header() {
     href === '/' ? pathname === '/' : pathname.startsWith(href)
 
   return (
-    <header className="sticky top-0 z-20 border-b border-line bg-bg/85 backdrop-blur-md">
-      <div className="mx-auto flex max-w-[1160px] items-center gap-6 px-5 py-3.5 sm:px-8">
+    <header className="sticky top-0 z-20 border-b border-line bg-bg/88 backdrop-blur-md">
+      <div className="mx-auto flex max-w-[1080px] items-center gap-7 px-5 py-3.5 sm:px-8">
         <Link href="/" className="mr-auto flex items-center gap-2.5">
-          <span className="grid size-[22px] place-items-center rounded-md border border-brand font-mono text-[11px] font-medium text-brand">
-            S
-          </span>
-          <span className="font-mono text-[15px] font-medium tracking-tight">
+          {/* 赭石方块是全站的标记语言：代码块标题、断点行、这里，同一个信号 */}
+          <span className="size-2 flex-none bg-brand" />
+          <span className="font-mono text-[14.5px] font-medium tracking-[-0.01em] text-ink">
             {site.name}
           </span>
         </Link>
@@ -29,8 +29,8 @@ export function Header() {
               href={item.href}
               className={
                 isActive(item.href)
-                  ? 'text-sm text-brand'
-                  : 'text-sm text-muted transition-colors hover:text-ink'
+                  ? 'relative text-[13.5px] text-ink after:absolute after:-bottom-[15px] after:left-0 after:h-px after:w-full after:bg-brand'
+                  : 'text-[13.5px] text-muted transition-colors hover:text-ink'
               }
             >
               {item.label}
@@ -38,11 +38,13 @@ export function Header() {
           ))}
         </nav>
 
+        <ThemeToggle />
+
         <Link
           href="/hire"
-          className="rounded-lg border border-brand px-3.5 py-1.5 text-[13px] font-medium text-brand transition-colors hover:bg-brand-tint"
+          className="whitespace-nowrap border border-brand px-3.5 py-1.5 font-mono text-[12px] font-medium text-brand transition-colors hover:bg-brand hover:text-bg"
         >
-          找我接单
+          接单
         </Link>
       </div>
 

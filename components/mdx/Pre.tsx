@@ -29,7 +29,7 @@ export function Pre(props: React.ComponentProps<'pre'>) {
         type="button"
         onClick={copy}
         aria-label="复制代码"
-        className="absolute right-2 top-2 rounded-md border border-line bg-surface px-2 py-1 font-mono text-[10px] text-muted opacity-0 transition-opacity hover:text-brand focus-visible:opacity-100 group-hover:opacity-100"
+        className="absolute right-2 top-2 rounded border border-line bg-surface px-2 py-1 font-mono text-[10px] tracking-[0.06em] text-faint opacity-0 transition-opacity hover:border-brand hover:text-brand focus-visible:opacity-100 group-hover:opacity-100"
       >
         {copied ? '已复制' : '复制'}
       </button>

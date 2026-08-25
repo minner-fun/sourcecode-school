@@ -35,12 +35,12 @@ export default async function SeriesDetailPage({
   if (!series) notFound()
 
   return (
-    <div className="mx-auto grid max-w-[1160px] grid-cols-1 items-start gap-12 px-5 py-12 sm:px-8 lg:grid-cols-[minmax(0,1fr)_296px]">
+    <div className="mx-auto grid max-w-[1080px] grid-cols-1 items-start gap-12 px-5 py-12 sm:px-8 lg:grid-cols-[minmax(0,1fr)_296px]">
       <div>
-        <div className="mb-4 font-mono text-[11px] tracking-[0.14em] text-brand">
+        <div className="tag-line mb-4">
           SERIES · {series.posts.length} 篇
         </div>
-        <h1 className="m-0 mb-8 text-[30px] font-medium leading-tight tracking-tight sm:text-[34px]">
+        <h1 className="display m-0 mb-8 text-[28px] sm:text-[34px]">
           {series.title}
         </h1>
         <div>

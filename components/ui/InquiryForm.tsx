@@ -10,7 +10,7 @@ function SubmitButton() {
     <button
       type="submit"
       disabled={pending}
-      className="rounded-lg bg-brand py-2.5 text-sm font-medium text-white transition-opacity hover:opacity-90 disabled:opacity-60"
+      className="border border-brand bg-brand py-2.5 font-mono text-[12.5px] font-medium text-bg transition-opacity hover:opacity-88 disabled:opacity-60"
     >
       {pending ? '提交中…' : '发送'}
     </button>
@@ -18,7 +18,7 @@ function SubmitButton() {
 }
 
 const field =
-  'w-full rounded-lg border border-line bg-surface px-3 py-2 text-sm text-ink outline-none transition-colors placeholder:text-faint focus:border-brand'
+  'w-full border border-line bg-bg px-3 py-2 text-[13.5px] text-ink outline-none transition-colors placeholder:text-faint focus:border-brand'
 
 export function InquiryForm() {
   const [state, action] = useActionState<InquiryState, FormData>(
@@ -29,13 +29,13 @@ export function InquiryForm() {
   return (
     <form action={action} className="flex flex-col gap-3">
       <div>
-        <label htmlFor="name" className="mb-1.5 block text-xs text-ink-soft">
+        <label htmlFor="name" className="tag-line mb-1.5 block text-faint">
           称呼
         </label>
         <input id="name" name="name" className={field} placeholder="张三" />
       </div>
       <div>
-        <label htmlFor="contact" className="mb-1.5 block text-xs text-ink-soft">
+        <label htmlFor="contact" className="tag-line mb-1.5 block text-faint">
           联系方式
         </label>
         <input
@@ -47,7 +47,7 @@ export function InquiryForm() {
         />
       </div>
       <div>
-        <label htmlFor="detail" className="mb-1.5 block text-xs text-ink-soft">
+        <label htmlFor="detail" className="tag-line mb-1.5 block text-faint">
           需求说明
         </label>
         <textarea
@@ -76,7 +76,7 @@ export function InquiryForm() {
         <p
           role="status"
           className={
-            state.ok ? 'text-[13px] text-brand' : 'text-[13px] text-amber'
+            state.ok ? 'text-[13px] text-pass' : 'text-[13px] text-fail'
           }
         >
           {state.message}

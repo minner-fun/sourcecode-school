@@ -84,32 +84,34 @@ export default async function PostPage({
   }
 
   return (
-    <div className="mx-auto grid max-w-[1160px] grid-cols-1 items-start gap-12 px-5 py-10 sm:px-8 lg:grid-cols-[minmax(0,1fr)_232px] lg:gap-14">
+    <div className="mx-auto grid max-w-[1080px] grid-cols-1 items-start gap-12 px-5 py-10 sm:px-8 lg:grid-cols-[minmax(0,1fr)_232px] lg:gap-14">
       <script
         type="application/ld+json"
         dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}
       />
 
       <article className="min-w-0 max-w-[46em]">
-        <Link href="/" className="font-mono text-xs text-faint hover:text-brand">
-          ← 返回文章列表
+        <Link
+          href="/"
+          className="rail transition-colors hover:text-brand"
+        >
+          ← 文章列表
         </Link>
 
-        <div className="mb-3.5 mt-6 flex flex-wrap items-center gap-2.5">
+        <div className="mb-4 mt-6 flex flex-wrap items-center gap-3">
           <CategoryBadge category={post.category} />
-          <time dateTime={post.date} className="font-mono text-xs text-faint">
+          <time dateTime={post.date} className="rail">
             {post.date}
           </time>
-          <span className="font-mono text-xs text-faint">
-            · 约 {post.readingMinutes} 分钟
-          </span>
+          <span className="rail">{post.readingMinutes} min read</span>
         </div>
 
-        <h1 className="m-0 mb-4 text-[27px] font-medium leading-tight tracking-tight sm:text-[34px]">
+        <h1 className="display m-0 mb-5 text-[28px] sm:text-[34px]">
           {post.title}
         </h1>
 
-        <p className="m-0 mb-7 text-base leading-relaxed text-ink-soft">
+        {/* 摘要是文章的承诺，单独一档字号并压一条线，和正文分开 */}
+        <p className="m-0 mb-8 border-b border-line pb-8 text-[16.5px] leading-[1.8] text-ink-soft">
           {post.excerpt}
         </p>
 
@@ -118,7 +120,7 @@ export default async function PostPage({
         ) : null}
 
         {post.cover ? (
-          <div className="relative mb-8 aspect-[2/1] overflow-hidden rounded-xl border border-line">
+          <div className="relative mb-8 aspect-[2/1] overflow-hidden rounded border border-line">
             <Image
               src={post.cover}
               alt={post.title}
@@ -151,9 +153,9 @@ export default async function PostPage({
             {seriesContext.prev ? (
               <Link
                 href={`/posts/${seriesContext.prev.slug}`}
-                className="rounded-xl border border-line p-4 transition-colors hover:border-brand-edge"
+                className="border border-line p-4 transition-colors hover:border-brand"
               >
-                <div className="mb-1.5 font-mono text-[10px] tracking-[0.1em] text-faint">
+                <div className="tag-line mb-1.5 text-faint">
                   ← 系列上一篇
                 </div>
                 <div className="text-sm leading-snug text-ink">
@@ -166,9 +168,9 @@ export default async function PostPage({
             {seriesContext.next ? (
               <Link
                 href={`/posts/${seriesContext.next.slug}`}
-                className="rounded-xl border border-line p-4 text-right transition-colors hover:border-brand-edge"
+                className="border border-line p-4 text-right transition-colors hover:border-brand"
               >
-                <div className="mb-1.5 font-mono text-[10px] tracking-[0.1em] text-faint">
+                <div className="tag-line mb-1.5 text-faint">
                   系列下一篇 →
                 </div>
                 <div className="text-sm leading-snug text-ink">
@@ -188,15 +190,15 @@ export default async function PostPage({
 
         {related.length > 0 ? (
           <div>
-            <div className="mb-3.5 text-[11px] uppercase tracking-[0.1em] text-faint">
-              相关文章
+            <div className="tag-line mb-3.5 border-b border-line pb-2 text-faint">
+              Related
             </div>
-            <ul className="flex flex-col gap-3.5">
+            <ul className="flex flex-col gap-3">
               {related.map((r) => (
                 <li key={r.slug}>
                   <Link
                     href={`/posts/${r.slug}`}
-                    className="block text-[13px] leading-snug text-muted transition-colors hover:text-brand"
+                    className="block text-[12.5px] leading-snug text-muted transition-colors hover:text-brand"
                   >
                     {r.title}
                   </Link>

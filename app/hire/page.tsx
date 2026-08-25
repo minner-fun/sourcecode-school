@@ -15,24 +15,14 @@ export const metadata: Metadata = {
 export default function HirePage() {
   return (
     <>
-      <section className="relative overflow-hidden border-b border-line">
-        <div
-          aria-hidden
-          className="pointer-events-none absolute -right-36 -top-72 size-[640px] rounded-full"
-          style={{
-            background:
-              'radial-gradient(circle, var(--brand-tint), transparent 68%)',
-          }}
-        />
-        <div className="relative mx-auto flex max-w-[1160px] flex-col items-start gap-8 px-5 py-12 sm:px-8 sm:py-14 md:flex-row md:items-center md:gap-11">
+      <section className="border-b border-line">
+        <div className="mx-auto flex max-w-[1080px] flex-col items-start gap-8 px-5 py-14 sm:px-8 md:flex-row md:items-center md:gap-12">
           <div className="flex-1">
-            <div className="mb-4 font-mono text-[11px] tracking-[0.14em] text-brand">
-              ABOUT · FREELANCE
-            </div>
-            <h1 className="m-0 mb-3.5 max-w-[16em] text-[30px] font-medium leading-tight tracking-tight sm:text-[36px]">
+            <div className="tag-line mb-5">About · Freelance</div>
+            <h1 className="display m-0 mb-5 max-w-[15em] text-[28px] sm:text-[36px]">
               数据采集与分析，长期承接
             </h1>
-            <p className="m-0 max-w-[40em] text-[15.5px] leading-relaxed text-muted">
+            <p className="m-0 max-w-[38em] text-[15px] leading-[1.85] text-muted">
               {site.author.bio}
               需求提供目标平台、字段范围与数据量后即可评估，无法承接的会直接说明。
             </p>
@@ -40,81 +30,84 @@ export default function HirePage() {
           <Image
             src={site.author.avatar}
             alt={site.author.name}
-            width={132}
-            height={132}
+            width={128}
+            height={128}
             priority
-            className="size-[132px] shrink-0 rounded-2xl border border-line"
+            className="size-32 shrink-0 rounded border border-line"
           />
         </div>
       </section>
 
-      <div className="mx-auto max-w-[1160px] px-5 py-11 sm:px-8">
-        <div className="mb-12 grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+      <div className="mx-auto max-w-[1080px] px-5 py-12 sm:px-8">
+        {/* 服务项之间是并列关系，用发丝线分隔而不是编号 */}
+        <SectionTitle>能做什么</SectionTitle>
+        <div className="mb-14 grid divide-y divide-line border-b border-line sm:grid-cols-2 sm:divide-y-0 sm:[&>*:nth-child(-n+2)]:border-b sm:[&>*:nth-child(odd)]:border-r sm:[&>*]:border-line">
           {services.map((s) => (
-            <div
-              key={s.no}
-              className="flex flex-col gap-2 rounded-xl border border-line bg-surface p-5"
-            >
-              <div className="font-mono text-[10px] tracking-[0.12em] text-brand">
-                {s.no}
-              </div>
-              <div className="text-[16.5px] font-medium leading-snug text-ink">
+            <div key={s.title} className="px-0 py-5 sm:px-6 sm:[&:nth-child(odd)]:pl-0">
+              <h3 className="m-0 mb-2 text-[16px] font-semibold leading-snug text-ink">
                 {s.title}
-              </div>
-              <p className="m-0 text-[13px] leading-relaxed text-muted">
+              </h3>
+              <p className="m-0 text-[13.5px] leading-relaxed text-muted">
                 {s.desc}
               </p>
             </div>
           ))}
         </div>
 
-        <div className="grid items-start gap-12 lg:grid-cols-[minmax(0,1fr)_340px] lg:gap-14">
+        <div className="grid items-start gap-12 lg:grid-cols-[minmax(0,1fr)_320px] lg:gap-16">
           <div>
+            {/* 这里编号是真实顺序：一步做完才有下一步 */}
             <SectionTitle>合作流程</SectionTitle>
             {steps.map((s) => (
               <div
                 key={s.no}
-                className="grid grid-cols-[48px_minmax(0,1fr)] gap-5 border-b border-line py-4"
+                className="grid grid-cols-[36px_minmax(0,1fr)] gap-4 border-b border-line py-4"
               >
-                <div className="font-mono text-[26px] font-medium text-brand-tint">
+                <div className="font-mono text-[13px] font-semibold tabular-nums text-brand">
                   {s.no}
                 </div>
                 <div>
-                  <div className="mb-1.5 text-base font-medium text-ink">
+                  <div className="mb-1.5 text-[15px] font-semibold text-ink">
                     {s.title}
                   </div>
-                  <p className="m-0 max-w-[44em] text-[13.5px] leading-relaxed text-muted">
+                  <p className="m-0 max-w-[42em] text-[13.5px] leading-relaxed text-muted">
                     {s.desc}
                   </p>
                 </div>
               </div>
             ))}
 
-            <div className="mt-10">
+            <div className="mt-12">
               <SectionTitle>不承接的需求</SectionTitle>
-              <ul className="m-0 list-disc pl-5 text-sm leading-loose text-muted">
+              <ul className="m-0 list-none p-0">
                 {declined.map((d) => (
-                  <li key={d}>{d}</li>
+                  <li
+                    key={d}
+                    className="flex gap-3 border-b border-line py-3 text-[14px] leading-relaxed text-muted"
+                  >
+                    <span className="font-mono text-[13px] text-fail">×</span>
+                    {d}
+                  </li>
                 ))}
               </ul>
             </div>
           </div>
 
-          <aside className="rounded-2xl border border-brand-edge bg-brand-wash p-5 lg:sticky lg:top-24">
-            <div className="mb-2 text-lg font-medium text-ink">说明需求</div>
-            <p className="m-0 mb-4 text-[13px] leading-relaxed text-muted">
+          <aside className="border-t-2 border-brand bg-surface p-5 lg:sticky lg:top-24">
+            <div className="tag-line mb-3">Start here</div>
+            <p className="m-0 mb-4 text-[13.5px] leading-relaxed text-muted">
               填写后我会在一天内回复，也可以直接加微信。
             </p>
             <InquiryForm />
             <div className="my-5 h-px bg-line" />
-            <dl className="flex flex-col gap-2.5 text-[13px]">
-              <div className="flex justify-between">
-                <dt className="text-faint">微信</dt>
-                <dd className="font-mono">{site.contacts.wechat}</dd>
+            <dl className="flex flex-col gap-2 font-mono text-[12px]">
+              <div className="flex justify-between gap-3">
+                <dt className="text-faint">WECHAT</dt>
+                <dd className="text-ink">{site.contacts.wechat}</dd>
               </div>
-              <div className="flex justify-between">
-                <dt className="text-faint">邮箱</dt>
-                <dd className="font-mono">{site.contacts.email}</dd>
+              <div className="flex justify-between gap-3">
+                <dt className="text-faint">EMAIL</dt>
+                <dd className="truncate text-ink">{site.contacts.email}</dd>
               </div>
             </dl>
           </aside>

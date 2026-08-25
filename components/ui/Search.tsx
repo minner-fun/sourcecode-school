@@ -61,7 +61,7 @@ export function Search({ entries }: { entries: SearchEntry[] }) {
         onChange={(e) => setQuery(e.target.value)}
         autoFocus
         placeholder="标题、摘要、标签，多个关键词用空格分隔"
-        className="w-full rounded-xl border border-line bg-surface px-4 py-3 text-[15px] text-ink outline-none transition-colors placeholder:text-faint focus:border-brand"
+        className="w-full border border-line bg-bg px-4 py-3 font-mono text-[14px] text-ink outline-none transition-colors placeholder:text-faint focus:border-brand"
       />
 
       <p className="mt-3 text-[13px] text-faint">
@@ -75,26 +75,29 @@ export function Search({ entries }: { entries: SearchEntry[] }) {
           <Link
             key={entry.slug}
             href={`/posts/${entry.slug}`}
-            className="flex flex-col gap-1.5 border-b border-line py-4 transition-colors hover:bg-raised"
+            className="group grid gap-x-6 gap-y-2 border-b border-line py-4 sm:grid-cols-[68px_minmax(0,1fr)]"
           >
-            <div className="flex items-center gap-2.5">
+            <time
+              dateTime={entry.date}
+              className="rail pt-[3px] transition-colors group-hover:text-brand sm:text-right"
+            >
+              {entry.date}
+            </time>
+            <div className="min-w-0">
+              <div className="mb-1.5 text-[16px] font-semibold leading-snug text-ink">
+                {highlight(entry.title, terms)}
+              </div>
+              <p className="m-0 mb-2 text-[13px] leading-relaxed text-muted">
+                {highlight(entry.excerpt, terms)}
+              </p>
               <CategoryBadge category={entry.category} />
-              <time dateTime={entry.date} className="font-mono text-[11px] text-faint">
-                {entry.date}
-              </time>
             </div>
-            <div className="text-[16px] font-medium leading-snug text-ink">
-              {highlight(entry.title, terms)}
-            </div>
-            <p className="m-0 text-[13px] leading-relaxed text-muted">
-              {highlight(entry.excerpt, terms)}
-            </p>
           </Link>
         ))}
       </div>
 
       {terms.length > 0 && results.length === 0 ? (
-        <p className="rounded-xl border border-dashed border-line p-8 text-center text-sm text-muted">
+        <p className="border border-dashed border-line p-8 text-center text-sm text-muted">
           没有匹配的文章。换个词，或者去 <span className="text-brand">归档</span> 按标签浏览。
         </p>
       ) : null}

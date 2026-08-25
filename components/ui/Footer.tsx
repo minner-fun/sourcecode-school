@@ -3,8 +3,8 @@ import { site } from '@/lib/site'
 
 export function Footer() {
   return (
-    <footer className="border-t border-line">
-      <div className="mx-auto flex max-w-[1160px] flex-wrap items-center gap-x-5 gap-y-2.5 px-5 py-6 font-mono text-xs text-faint sm:px-8">
+    <footer className="mt-20 border-t border-line">
+      <div className="mx-auto flex max-w-[1080px] flex-wrap items-center gap-x-6 gap-y-2.5 px-5 py-7 font-mono text-[11.5px] text-faint sm:px-8">
         <span>© {new Date().getFullYear()} {site.name}</span>
         <Link href="/feed.xml" className="transition-colors hover:text-brand">
           RSS
@@ -12,6 +12,14 @@ export function Footer() {
         <Link href="/archive" className="transition-colors hover:text-brand">
           归档
         </Link>
+        <a
+          href={site.contacts.github}
+          target="_blank"
+          rel="noreferrer noopener"
+          className="transition-colors hover:text-brand"
+        >
+          GitHub
+        </a>
         {site.icp ? (
           <a
             href="https://beian.miit.gov.cn/"

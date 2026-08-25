@@ -4,31 +4,31 @@ import { site } from '@/lib/site'
 
 export function AuthorCard() {
   return (
-    <div className="flex flex-col gap-4 rounded-2xl border border-brand-edge bg-brand-wash p-5 sm:flex-row sm:gap-5">
+    <div className="flex flex-col gap-4 border-t-2 border-brand bg-surface p-5 sm:flex-row sm:gap-5">
       <Image
         src={site.author.avatar}
         alt={site.author.name}
         width={56}
         height={56}
-        className="size-14 shrink-0 rounded-xl border border-line"
+        className="size-14 shrink-0 rounded border border-line"
       />
       <div className="flex-1">
-        <div className="mb-1.5 text-base font-medium text-ink">
-          关于 {site.author.name}
+        <div className="mb-2 font-mono text-[13px] font-semibold text-ink">
+          {site.author.name}
         </div>
-        <p className="mb-3.5 text-[13.5px] leading-relaxed text-muted">
+        <p className="m-0 mb-3.5 text-[13.5px] leading-relaxed text-muted">
           {site.author.bio}
         </p>
         <div className="flex flex-wrap gap-2.5">
           <Link
             href="/hire"
-            className="rounded-lg border border-brand px-3.5 py-1.5 text-[13px] font-medium text-brand transition-colors hover:bg-brand-tint"
+            className="border border-brand px-3.5 py-1.5 font-mono text-[12px] font-medium text-brand transition-colors hover:bg-brand hover:text-bg"
           >
             查看服务
           </Link>
           <Link
             href="/contact"
-            className="rounded-lg border border-line px-3.5 py-1.5 text-[13px] font-medium text-ink transition-colors hover:bg-raised"
+            className="border border-line px-3.5 py-1.5 font-mono text-[12px] font-medium text-ink transition-colors hover:border-ink"
           >
             联系方式
           </Link>

@@ -1,56 +1,126 @@
 @import 'tailwindcss';
 
 /*
- * 颜色以裸 CSS 变量定义，@theme inline 让 Tailwind 工具类输出 var() 引用，
- * 这样深色模式只需要覆盖变量，不用给每个元素写 dark: 变体。
+ * 配色取自调试器命中断点时那一行的高亮，以及 403/200 这组状态色。
+ * 主色刻意避开蓝：国内技术社区清一色蓝调，再用蓝等于隐形。
+ *
+ * 颜色以裸 CSS 变量定义，@theme inline 让工具类输出 var() 引用，
+ * 深色模式只需覆盖变量，不用给每个元素写 dark: 变体。
  */
 :root {
-  --bg: #f7f8fa;
+  /* 纸面：极轻微偏暖的白，不是米色——米色配衬线是另一套语言 */
+  --bg: #fbfaf7;
   --surface: #ffffff;
-  --raised: #f7f8fa;
-  --ink: #16191d;
-  --ink-soft: #3f4650;
-  --muted: #5a616c;
-  --faint: #8b929c;
-  --line: #e4e7ec;
-  --line-soft: #eef0f3;
+  --raised: #f5f3ee;
 
-  --brand: #1f5eda;
-  --brand-deep: #1746a8;
-  --brand-tint: #eef4ff;
-  --brand-wash: #f4f7fe;
-  --brand-edge: rgba(31, 94, 218, 0.26);
+  --ink: #14161a;
+  --ink-soft: #3c424a;
+  --muted: #5f6670;
+  --faint: #949aa3;
 
-  /* 时事栏目的区分色，避免整站只有一个蓝 */
-  --amber: #a4560c;
-  --amber-edge: rgba(164, 86, 12, 0.32);
+  --line: #e4e1d9;
+  --line-soft: #efece5;
 
-  --selection: rgba(31, 94, 218, 0.16);
+  /* halt：断点命中那一行的赭石橙，全站主色 */
+  --brand: #b4530a;
+  --brand-deep: #8f4108;
+  --brand-tint: #fdf1e3;
+  --brand-wash: #fefaf4;
+  --brand-edge: rgba(180, 83, 10, 0.28);
+
+  /* alt：冷色副线，用于区分「时事」这类非主线内容 */
+  --alt: #2c5f6b;
+  --alt-edge: rgba(44, 95, 107, 0.3);
+
+  /* 状态色，正文里 200 / 403 这类标记直接复用 */
+  --pass: #2f6f4e;
+  --fail: #a32b1f;
+
+  --selection: rgba(180, 83, 10, 0.16);
+
+  /*
+   * 深色一组值只在这里定义一次，下面两个切换入口都引用它，
+   * 改颜色不用改两处。
+   */
+  --d-bg: #101215;
+  --d-surface: #171a1e;
+  --d-raised: #1c2025;
+  --d-ink: #e8e5df;
+  --d-ink-soft: #c3c0b9;
+  --d-muted: #9aa0a8;
+  --d-faint: #6b727b;
+  --d-line: #2a2e34;
+  --d-line-soft: #212529;
+  --d-brand: #e39a4a;
+  --d-brand-deep: #f0b571;
+  --d-brand-tint: rgba(227, 154, 74, 0.13);
+  --d-brand-wash: rgba(227, 154, 74, 0.06);
+  --d-brand-edge: rgba(227, 154, 74, 0.32);
+  --d-alt: #6fa9b6;
+  --d-alt-edge: rgba(111, 169, 182, 0.32);
+  --d-pass: #5aa87c;
+  --d-fail: #e0705f;
+  --d-selection: rgba(227, 154, 74, 0.22);
 }
 
+/*
+ * 深色有两条进入路径，必须共存：
+ *   1. 跟随系统 —— 但用户手动选了浅色时要让位，所以排除 data-scheme="light"
+ *   2. 手动切到深色 —— 无视系统偏好
+ *
+ * 属性用 data-scheme 而不是 data-theme：shiki 已经在 <pre> 上用了 data-theme，
+ * 两者同名会让选择器很难读。
+ */
 @media (prefers-color-scheme: dark) {
-  :root {
-    --bg: #0f1216;
-    --surface: #16191d;
-    --raised: #1b1f25;
-    --ink: #e8eaed;
-    --ink-soft: #c2c7ce;
-    --muted: #9aa1ab;
-    --faint: #6b7280;
-    --line: #272c33;
-    --line-soft: #1f242a;
-
-    --brand: #6c9bff;
-    --brand-deep: #a8c3ff;
-    --brand-tint: rgba(31, 94, 218, 0.14);
-    --brand-wash: rgba(31, 94, 218, 0.07);
-    --brand-edge: rgba(108, 155, 255, 0.3);
-
-    --amber: #e0a260;
-    --amber-edge: rgba(224, 162, 96, 0.32);
-
-    --selection: rgba(108, 155, 255, 0.24);
+  :root:not([data-scheme='light']) {
+    --bg: var(--d-bg);
+    --surface: var(--d-surface);
+    --raised: var(--d-raised);
+    --ink: var(--d-ink);
+    --ink-soft: var(--d-ink-soft);
+    --muted: var(--d-muted);
+    --faint: var(--d-faint);
+    --line: var(--d-line);
+    --line-soft: var(--d-line-soft);
+    --brand: var(--d-brand);
+    --brand-deep: var(--d-brand-deep);
+    --brand-tint: var(--d-brand-tint);
+    --brand-wash: var(--d-brand-wash);
+    --brand-edge: var(--d-brand-edge);
+    --alt: var(--d-alt);
+    --alt-edge: var(--d-alt-edge);
+    --pass: var(--d-pass);
+    --fail: var(--d-fail);
+    --selection: var(--d-selection);
   }
+}
+
+:root[data-scheme='dark'] {
+  /* 手动切到深色时，浏览器原生 UI（滚动条、表单控件）也要跟着走 */
+  color-scheme: dark;
+  --bg: var(--d-bg);
+  --surface: var(--d-surface);
+  --raised: var(--d-raised);
+  --ink: var(--d-ink);
+  --ink-soft: var(--d-ink-soft);
+  --muted: var(--d-muted);
+  --faint: var(--d-faint);
+  --line: var(--d-line);
+  --line-soft: var(--d-line-soft);
+  --brand: var(--d-brand);
+  --brand-deep: var(--d-brand-deep);
+  --brand-tint: var(--d-brand-tint);
+  --brand-wash: var(--d-brand-wash);
+  --brand-edge: var(--d-brand-edge);
+  --alt: var(--d-alt);
+  --alt-edge: var(--d-alt-edge);
+  --pass: var(--d-pass);
+  --fail: var(--d-fail);
+  --selection: var(--d-selection);
+}
+
+:root[data-scheme='light'] {
+  color-scheme: light;
 }
 
 @theme inline {
@@ -68,31 +138,36 @@
   --color-brand-tint: var(--brand-tint);
   --color-brand-wash: var(--brand-wash);
   --color-brand-edge: var(--brand-edge);
-  --color-amber: var(--amber);
-  --color-amber-edge: var(--amber-edge);
+  --color-alt: var(--alt);
+  --color-alt-edge: var(--alt-edge);
+  --color-pass: var(--pass);
+  --color-fail: var(--fail);
 
-  --font-sans: var(--font-cjk);
-  --font-mono: var(--font-jetbrains), ui-monospace, SFMono-Regular, monospace;
+  --font-sans: var(--font-body);
+  --font-mono: var(--font-plex-mono), ui-monospace, SFMono-Regular, monospace;
 }
 
 @layer base {
   :root {
-    /* 中文不引 webfont：CJK 字重全走系统栈，避免几 MB 的字体拖慢国内首屏 */
-    --font-cjk: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'PingFang SC',
-      'Hiragino Sans GB', 'Microsoft YaHei', 'Noto Sans SC', sans-serif;
+    /*
+     * 拉丁文用 Plex Sans，中文走系统栈。
+     * 中文 webfont 动辄几 MB，国内首屏承受不起，这条不让步。
+     * 两者 x-height 接近，混排不会明显错位。
+     */
+    --font-body: var(--font-plex-sans), -apple-system, BlinkMacSystemFont,
+      'PingFang SC', 'Hiragino Sans GB', 'Microsoft YaHei', sans-serif;
     color-scheme: light dark;
   }
 
   html {
     scroll-behavior: smooth;
-    /* 目录锚点跳转时不被吸顶导航盖住 */
     scroll-padding-top: 5.5rem;
   }
 
   body {
     background: var(--bg);
     color: var(--ink);
-    font-family: var(--font-cjk);
+    font-family: var(--font-body);
     -webkit-font-smoothing: antialiased;
     text-rendering: optimizeLegibility;
   }
@@ -109,8 +184,52 @@
   :focus-visible {
     outline: 2px solid var(--brand);
     outline-offset: 2px;
-    border-radius: 3px;
+    border-radius: 2px;
   }
+
+  @media (prefers-reduced-motion: reduce) {
+    html {
+      scroll-behavior: auto;
+    }
+    *,
+    *::before,
+    *::after {
+      animation-duration: 0.01ms !important;
+      animation-iteration-count: 1 !important;
+      transition-duration: 0.01ms !important;
+    }
+  }
+}
+
+/* ---------------------------------------------------------------
+ * 排版基元
+ * ------------------------------------------------------------- */
+
+/* 全站的结构性小字：栏目名、日期、状态、编号 */
+.tag-line {
+  font-family: var(--font-mono);
+  font-size: 10.5px;
+  font-weight: 500;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--brand);
+}
+
+/* 标题：中文靠字重和收紧的字距立住，拉丁部分交给 Plex Mono */
+.display {
+  font-weight: 600;
+  letter-spacing: -0.02em;
+  line-height: 1.22;
+  color: var(--ink);
+  text-wrap: balance;
+}
+
+/* 左侧导轨里的元信息，等宽右对齐，像十六进制编辑器的地址列 */
+.rail {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  font-variant-numeric: tabular-nums;
+  color: var(--faint);
 }
 
 /* ---------------------------------------------------------------
@@ -120,7 +239,7 @@
 .prose {
   color: var(--ink-soft);
   font-size: 15.5px;
-  line-height: 1.85;
+  line-height: 1.86;
 }
 
 .prose > * + * {
@@ -130,29 +249,43 @@
 .prose h2,
 .prose h3 {
   color: var(--ink);
-  font-weight: 500;
   letter-spacing: -0.015em;
   scroll-margin-top: 5.5rem;
 }
 
+/* 二级标题挂一段赭石短横，替代下划线分隔——层级靠标记而非线条 */
 .prose h2 {
-  font-size: 23px;
-  line-height: 1.4;
-  margin-top: 2.4em;
-  padding-top: 0.2em;
+  position: relative;
+  font-size: 22px;
+  font-weight: 600;
+  line-height: 1.45;
+  margin-top: 2.5em;
+  padding-left: 0.85em;
+}
+
+.prose h2::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  top: 0.42em;
+  width: 3px;
+  height: 0.92em;
+  background: var(--brand);
+  border-radius: 1px;
 }
 
 .prose h3 {
-  font-size: 18px;
+  font-size: 17.5px;
+  font-weight: 600;
   line-height: 1.5;
   margin-top: 1.9em;
 }
 
-/* rehype-autolink-headings 生成的锚点，悬停标题时才显形 */
 .prose .heading-anchor {
-  color: var(--faint);
-  margin-left: 0.4em;
+  font-family: var(--font-mono);
   font-weight: 400;
+  color: var(--faint);
+  margin-left: 0.45em;
   opacity: 0;
   transition: opacity 0.12s ease;
 }
@@ -173,6 +306,7 @@
   text-decoration-thickness: 1px;
   text-underline-offset: 3px;
   text-decoration-color: var(--brand-edge);
+  transition: text-decoration-color 0.12s ease;
 }
 
 .prose a:not(.heading-anchor):hover {
@@ -198,17 +332,26 @@
 }
 
 .prose li::marker {
-  color: var(--faint);
+  color: var(--brand);
+  font-family: var(--font-mono);
+  font-size: 0.9em;
 }
 
 .prose li + li {
   margin-top: 0.4em;
 }
 
+/* 引用块做成断点命中那一行：左侧赭石竖条 + 极浅暖底 */
 .prose blockquote {
-  border-left: 2px solid var(--brand);
-  padding: 0.1em 0 0.1em 1.1em;
+  border-left: 3px solid var(--brand);
+  background: var(--brand-wash);
+  padding: 0.85em 1.1em;
+  border-radius: 0 6px 6px 0;
   color: var(--ink);
+}
+
+.prose blockquote p {
+  margin: 0;
 }
 
 .prose hr {
@@ -221,23 +364,21 @@
 .prose img {
   max-width: 100%;
   height: auto;
-  border-radius: 10px;
+  border-radius: 6px;
   border: 1px solid var(--line);
 }
 
-/* 行内代码 */
 .prose :not(pre) > code {
   font-family: var(--font-mono);
-  font-size: 0.875em;
+  font-size: 0.86em;
   background: var(--raised);
   border: 1px solid var(--line);
   border-radius: 4px;
   padding: 0.12em 0.36em;
-  color: var(--ink);
+  color: var(--brand-deep);
   word-break: break-word;
 }
 
-/* 宽内容自己横向滚动，页面本身不产生横向滚动条 */
 .prose table {
   display: block;
   width: 100%;
@@ -249,37 +390,54 @@
 .prose th,
 .prose td {
   border: 1px solid var(--line);
-  padding: 8px 12px;
+  padding: 9px 13px;
   text-align: left;
 }
 
 .prose th {
   background: var(--raised);
   color: var(--ink);
-  font-weight: 500;
+  font-family: var(--font-mono);
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 0.04em;
   white-space: nowrap;
 }
 
 /* ---------------------------------------------------------------
- * 代码块（rehype-pretty-code + shiki，构建时高亮，不带客户端 JS）
+ * 代码块（rehype-pretty-code + shiki，构建时高亮，无客户端 JS）
  * ------------------------------------------------------------- */
 
 figure[data-rehype-pretty-code-figure] {
-  margin: 1.6em 0;
+  margin: 1.7em 0;
   border: 1px solid var(--line);
-  border-radius: 10px;
+  border-radius: 8px;
   overflow: hidden;
   background: var(--raised);
 }
 
 figure[data-rehype-pretty-code-figure] figcaption[data-rehype-pretty-code-title] {
-  padding: 8px 14px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 9px 14px;
   border-bottom: 1px solid var(--line);
+  background: var(--surface);
   font-family: var(--font-mono);
   font-size: 11px;
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
+  font-weight: 500;
+  letter-spacing: 0.06em;
   color: var(--muted);
+}
+
+/* 标题前缀一个赭石点，标明这块是可运行的东西而不是引文 */
+figure[data-rehype-pretty-code-figure] figcaption[data-rehype-pretty-code-title]::before {
+  content: '';
+  width: 5px;
+  height: 5px;
+  border-radius: 50%;
+  background: var(--brand);
+  flex: none;
 }
 
 figure[data-rehype-pretty-code-figure] pre {
@@ -302,13 +460,11 @@ figure[data-rehype-pretty-code-figure] code {
   border-left: 2px solid transparent;
 }
 
-/* ```js {3-5} 标记的行 */
 [data-highlighted-line] {
   background: var(--brand-tint);
   border-left-color: var(--brand);
 }
 
-/* ```js /token/ 标记的词 */
 [data-highlighted-chars] {
   background: var(--brand-tint);
   border-radius: 3px;
@@ -327,18 +483,42 @@ code[data-line-numbers] > [data-line]::before {
   width: 1.6rem;
   margin-right: 1rem;
   text-align: right;
+  font-variant-numeric: tabular-nums;
   color: var(--faint);
 }
 
-/* rehype-pretty-code 双主题：浅色用 --shiki-light，深色切到 --shiki-dark */
-.shiki,
-.shiki span {
+/*
+ * rehype-pretty-code 双主题：每个 token span 上带 --shiki-light / --shiki-dark
+ * 两个自定义属性，需要这里挂规则去消费它们，否则代码块是单色的。
+ *
+ * 选择器必须挂在 data-theme 上。双主题模式下它不输出 shiki class，
+ * 写 .shiki 会一个元素都匹配不到，而且不报错——高亮就这么静默失效。
+ */
+[data-rehype-pretty-code-figure] pre[data-theme],
+[data-rehype-pretty-code-figure] pre[data-theme] span {
   color: var(--shiki-light);
 }
 
 @media (prefers-color-scheme: dark) {
-  .shiki,
-  .shiki span {
+  :root:not([data-scheme='light']) [data-rehype-pretty-code-figure] pre[data-theme],
+  :root:not([data-scheme='light']) [data-rehype-pretty-code-figure] pre[data-theme] span {
     color: var(--shiki-dark);
+  }
+}
+
+:root[data-scheme='dark'] [data-rehype-pretty-code-figure] pre[data-theme],
+:root[data-scheme='dark'] [data-rehype-pretty-code-figure] pre[data-theme] span {
+  color: var(--shiki-dark);
+}
+
+/* 状态阶梯逐行显现，让读者按这个过程实际发生的顺序读到它 */
+@keyframes ladder {
+  from {
+    opacity: 0;
+    transform: translateY(4px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
   }
 }

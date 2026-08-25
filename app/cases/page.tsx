@@ -10,56 +10,51 @@ export const metadata: Metadata = {
 
 export default function CasesPage() {
   return (
-    <div className="mx-auto max-w-[1160px] px-5 py-12 sm:px-8">
-      <div className="mb-4 font-mono text-[11px] tracking-[0.14em] text-brand">
-        CASES
-      </div>
-      <h1 className="m-0 mb-3 text-[30px] font-medium leading-tight tracking-tight sm:text-[34px]">
+    <div className="mx-auto max-w-[1080px] px-5 py-12 sm:px-8">
+      <div className="tag-line mb-4">Cases</div>
+      <h1 className="display m-0 mb-4 text-[28px] sm:text-[34px]">
         已交付的项目
       </h1>
-      <p className="m-0 mb-9 max-w-[42em] text-[15.5px] leading-relaxed text-muted">
+      <p className="m-0 mb-10 max-w-[40em] text-[15px] leading-[1.85] text-muted">
         涉及客户信息的部分已做脱敏，只保留数据规模、周期与交付形式。
       </p>
 
-      <div className="grid gap-5 md:grid-cols-2 xl:grid-cols-3">
+      {/* 案例的可信度来自数字，所以数据本身排成对齐的等宽表，而不是配图卡片 */}
+      <div className="border-t border-ink">
         {cases.map((k) => (
           <article
             key={k.title}
-            className="flex flex-col overflow-hidden rounded-xl border border-line bg-surface"
+            className="grid gap-x-8 gap-y-4 border-b border-line py-6 lg:grid-cols-[minmax(0,1fr)_300px]"
           >
-            <div className="grid aspect-[16/9] place-items-center border-b border-line bg-raised text-center font-mono text-[10px] leading-relaxed text-faint">
-              项目截图待补
-            </div>
-            <div className="flex flex-1 flex-col gap-3 p-5">
-              <div className="flex items-center gap-2.5">
-                <span className="rounded border border-brand-edge px-1.5 py-0.5 text-[10.5px] text-brand">
+            <div>
+              <div className="mb-2 flex flex-wrap items-center gap-3">
+                <span className="rounded border border-brand-edge px-1.5 py-0.5 font-mono text-[10px] font-medium tracking-[0.06em] text-brand">
                   {k.kind}
                 </span>
-                <span className="ml-auto font-mono text-[11px] text-faint">
-                  {k.year}
-                </span>
+                <span className="rail">{k.year}</span>
               </div>
-              <h2 className="m-0 text-[17px] font-medium leading-snug text-ink">
+              <h2 className="m-0 mb-2 text-[17px] font-semibold leading-snug text-ink">
                 {k.title}
               </h2>
-              <p className="m-0 flex-1 text-[13px] leading-relaxed text-muted">
+              <p className="m-0 max-w-[40em] text-[13.5px] leading-relaxed text-muted">
                 {k.desc}
               </p>
-              <dl className="grid grid-cols-3 gap-2.5 border-t border-line pt-3">
-                {[
-                  ['数据量', k.volume],
-                  ['周期', k.time],
-                  ['交付', k.deliver],
-                ].map(([label, value]) => (
-                  <div key={label}>
-                    <dt className="mb-1 font-mono text-[10px] text-faint">
-                      {label}
-                    </dt>
-                    <dd className="text-[13px] text-ink">{value}</dd>
-                  </div>
-                ))}
-              </dl>
             </div>
+
+            <dl className="grid grid-cols-3 gap-4 self-start border-l border-line pl-6 lg:pl-8">
+              {[
+                ['数据量', k.volume],
+                ['周期', k.time],
+                ['交付', k.deliver],
+              ].map(([label, value]) => (
+                <div key={label}>
+                  <dt className="tag-line mb-1.5 text-faint">{label}</dt>
+                  <dd className="m-0 font-mono text-[13px] font-medium tabular-nums text-ink">
+                    {value}
+                  </dd>
+                </div>
+              ))}
+            </dl>
           </article>
         ))}
       </div>

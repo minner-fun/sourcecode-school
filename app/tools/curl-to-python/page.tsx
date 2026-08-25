@@ -11,11 +11,11 @@ export const metadata: Metadata = {
 
 export default function CurlToPythonPage() {
   return (
-    <div className="mx-auto max-w-[1160px] px-5 py-11 sm:px-8">
+    <div className="mx-auto max-w-[1080px] px-5 py-11 sm:px-8">
       <Link href="/tools" className="font-mono text-xs text-faint hover:text-brand">
         ← 全部工具
       </Link>
-      <h1 className="m-0 mb-3 mt-5 text-[27px] font-medium leading-tight tracking-tight sm:text-[32px]">
+      <h1 className="display m-0 mb-3 mt-5 text-[28px] sm:text-[32px]">
         curl 转 Python requests
       </h1>
       <p className="m-0 mb-8 max-w-[46em] text-[15px] leading-relaxed text-muted">

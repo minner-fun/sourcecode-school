@@ -3,7 +3,7 @@ import { notFound } from 'next/navigation'
 import Link from 'next/link'
 import { getPostsByCategory } from '@/lib/posts'
 import { categories, categoryMap, type CategorySlug } from '@/lib/site'
-import { PostCard } from '@/components/ui/PostCard'
+import { PostItem } from '@/components/ui/PostItem'
 
 export function generateStaticParams() {
   return categories.map((c) => ({ slug: c.slug }))
@@ -36,11 +36,11 @@ export default async function CategoryPage({
   const posts = getPostsByCategory(category.slug)
 
   return (
-    <div className="mx-auto max-w-[1160px] px-5 py-12 sm:px-8">
-      <div className="mb-4 font-mono text-[11px] tracking-[0.14em] text-brand">
+    <div className="mx-auto max-w-[1080px] px-5 py-12 sm:px-8">
+      <div className="tag-line mb-4">
         {category.en}
       </div>
-      <h1 className="m-0 mb-3 text-[30px] font-medium leading-tight tracking-tight sm:text-[34px]">
+      <h1 className="display m-0 mb-3 text-[28px] sm:text-[34px]">
         {category.label}
       </h1>
       <p className="m-0 mb-8 max-w-[42em] text-[15.5px] leading-relaxed text-muted">
@@ -64,13 +64,13 @@ export default async function CategoryPage({
       </nav>
 
       {posts.length === 0 ? (
-        <p className="rounded-xl border border-dashed border-line p-8 text-center text-sm text-muted">
+        <p className="border border-dashed border-line p-8 text-center text-sm text-muted">
           这个栏目还没有文章。
         </p>
       ) : (
-        <div className="grid gap-6 sm:grid-cols-2 xl:grid-cols-3">
+        <div>
           {posts.map((post) => (
-            <PostCard key={post.slug} post={post} />
+            <PostItem key={post.slug} post={post} />
           ))}
         </div>
       )}

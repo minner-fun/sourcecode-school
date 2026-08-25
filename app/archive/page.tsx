@@ -15,12 +15,12 @@ export default function ArchivePage() {
   const tags = getAllTags()
 
   return (
-    <div className="mx-auto grid max-w-[1160px] grid-cols-1 items-start gap-12 px-5 py-12 sm:px-8 lg:grid-cols-[minmax(0,1fr)_260px] lg:gap-14">
+    <div className="mx-auto grid max-w-[1080px] grid-cols-1 items-start gap-12 px-5 py-12 sm:px-8 lg:grid-cols-[minmax(0,1fr)_260px] lg:gap-14">
       <div>
-        <div className="mb-4 font-mono text-[11px] tracking-[0.14em] text-brand">
+        <div className="tag-line mb-4">
           ARCHIVE
         </div>
-        <h1 className="m-0 mb-9 text-[30px] font-medium leading-tight tracking-tight sm:text-[34px]">
+        <h1 className="display m-0 mb-9 text-[28px] sm:text-[34px]">
           全部 {total} 篇
         </h1>
 
@@ -43,7 +43,7 @@ export default function ArchivePage() {
       </div>
 
       <aside className="lg:sticky lg:top-24">
-        <div className="mb-3.5 text-[11px] uppercase tracking-[0.1em] text-faint">
+        <div className="tag-line mb-3.5 border-b border-line pb-2 text-faint">
           按标签
         </div>
         <div className="flex flex-wrap gap-2">

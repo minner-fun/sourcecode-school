@@ -1,18 +1,23 @@
 import Link from 'next/link'
 import type { Post } from '@/lib/posts'
 
-/** 归档与系列页用的紧凑行式条目 */
+/** 归档与系列页用的紧凑行，只保留日期、标题和一个标签 */
 export function PostRow({ post }: { post: Post }) {
   return (
     <Link
       href={`/posts/${post.slug}`}
-      className="grid grid-cols-[76px_minmax(0,1fr)] items-baseline gap-x-4 gap-y-1 border-b border-line py-3 transition-colors hover:bg-raised sm:grid-cols-[88px_minmax(0,1fr)_auto] sm:gap-x-5"
+      className="group grid grid-cols-[68px_minmax(0,1fr)] items-baseline gap-x-6 gap-y-1 border-b border-line py-3 sm:grid-cols-[68px_minmax(0,1fr)_auto]"
     >
-      <time dateTime={post.date} className="font-mono text-xs text-faint">
+      <time
+        dateTime={post.date}
+        className="rail transition-colors group-hover:text-brand sm:text-right"
+      >
         {post.date}
       </time>
-      <span className="text-[15px] leading-normal text-ink">{post.title}</span>
-      <span className="col-start-2 text-[11px] text-brand sm:col-start-3">
+      <span className="text-[15px] leading-normal text-ink decoration-brand-edge underline-offset-[5px] group-hover:underline">
+        {post.title}
+      </span>
+      <span className="col-start-2 font-mono text-[11px] text-faint sm:col-start-3">
         {post.tags[0] ?? post.categoryLabel}
       </span>
     </Link>

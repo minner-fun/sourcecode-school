@@ -138,7 +138,49 @@ pnpm export:post --all      # 全部
 
 环境变量见 `.env.example`。
 
+## 设计系统
+
+主色是**赭石橙 `#b4530a`**——调试器命中断点那一行的高亮色，也是 403 的颜色。
+刻意避开蓝：国内技术社区清一色蓝调，再用蓝等于隐形。赭石只给主线内容和真正的信号用
+（断点行、代码块标记、当前项、CTA），数据工程走中性、时事走冷青 `#2c5f6b`，
+三档分得开又不会整页在喊。
+
+等宽字体是主声部：IBM Plex Mono 承担标题的拉丁部分、元信息、状态标记、编号；
+IBM Plex Sans 管拉丁正文。这个站的拉丁字符几乎都是代码、接口和哈希，本来就该是等宽的。
+中文走系统栈，不引 webfont。
+
+列表用导轨式：日期挪进左侧一条等宽导轨，像十六进制编辑器的地址列。
+首页 hero 的状态阶梯（`403` → 分析 → `200`）是全站的签名元素。
+
+### 改颜色
+
+全部颜色定义在 `app/globals.css` 顶部的 `:root` 里，组件只用语义 token
+（`bg-bg` `text-ink` `border-line` `text-brand` 等），不写死色值。
+深色一组值以 `--d-*` 前缀**只定义一次**，两条切换路径都引用它，改颜色只动一处。
+
+### 深色模式
+
+有两条进入路径，必须共存：
+
+- `@media (prefers-color-scheme: dark)` 下的 `:root:not([data-scheme='light'])` —— 跟随系统
+- `:root[data-scheme='dark']` —— 用户手动切换，无视系统偏好
+
+`<html>` 上的属性用 `data-scheme` 而不是 `data-theme`：shiki 已经在 `<pre>` 上用了
+`data-theme`，同名会让选择器很难读。
+
+切换按钮是三态循环（AUTO / LIGHT / DARK），选择存在 `localStorage`。
+`app/layout.tsx` 里有一段同步执行的内联脚本在首屏绘制前读取它——
+晚一步就会先按系统配色画一帧，手动选了深色的读者每次刷新都会被闪一下白。
+
 ## 几个已经踩过的坑
+
+**`.shiki` 这个 class 在双主题模式下不存在。** rehype-pretty-code 配双主题时，
+配色写成每个 token span 上的 `--shiki-light` / `--shiki-dark` 两个自定义属性，
+标记用的是 `data-theme` 属性而不是 `shiki` class。CSS 规则挂在 `.shiki` 上会一个元素都匹配不到，
+**而且不报错**——代码块静默变成单色。选择器见 `app/globals.css` 末尾。
+
+**服务端组件不能从 `'use client'` 模块 import 普通值。** 拿到的是客户端引用代理不是真实值，
+拼进字符串会变成 `undefined` 且不报错。共享常量放普通模块，见 `lib/theme.ts`。
 
 **`next-mdx-remote` v6 默认剥掉 JS 表达式。** `blockJS` 默认为 `true`，会把
 `<CallChain steps={[...]} />` 这类属性表达式静默丢弃，组件拿到 `undefined`。
@@ -158,4 +200,5 @@ pnpm export:post --all      # 全部
 - **文章 OG 图自动生成**：`next/og` 默认字体不含中文，要自动生成得内嵌一个中文字体子集，
   目前先用 `cover` 字段手工指定。
 - **访问统计**：国内可用 百度统计 / 51la，海外用 Plausible / Umami。
+- **封面图**：`public/covers/` 还是空的，没有封面的文章分享出去是无图卡片。
 - **工具页**：`lib/tools.ts` 里标了 `planned` 的三个还没实现。

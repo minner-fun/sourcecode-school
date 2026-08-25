@@ -7,7 +7,7 @@ import type { MDXRemoteProps } from 'next-mdx-remote/rsc'
 const prettyCode: PrettyCodeOptions = {
   // 双主题：shiki 把两套颜色写成 --shiki-light / --shiki-dark，
   // 由 globals.css 里的 prefers-color-scheme 决定用哪一套，不需要客户端 JS。
-  theme: { light: 'github-light', dark: 'github-dark-dimmed' },
+  theme: { light: 'one-light', dark: 'one-dark-pro' },
   // 背景交给我们自己的 CSS，保证代码块和站点其余卡片同色
   keepBackground: false,
   defaultLang: { block: 'text', inline: 'text' },

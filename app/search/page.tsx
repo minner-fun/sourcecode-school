@@ -27,10 +27,10 @@ export default function SearchPage() {
 
   return (
     <div className="mx-auto max-w-[720px] px-5 py-12 sm:px-8">
-      <div className="mb-4 font-mono text-[11px] tracking-[0.14em] text-brand">
+      <div className="tag-line mb-4">
         SEARCH
       </div>
-      <h1 className="m-0 mb-7 text-[30px] font-medium leading-tight tracking-tight sm:text-[34px]">
+      <h1 className="display m-0 mb-7 text-[28px] sm:text-[34px]">
         搜索
       </h1>
       <Search entries={entries} />

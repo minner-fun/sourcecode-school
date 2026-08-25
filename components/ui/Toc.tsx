@@ -18,7 +18,6 @@ export function Toc({ headings }: { headings: Heading[] }) {
       .filter((n): n is HTMLElement => n !== null)
     if (nodes.length === 0) return
 
-    // 记录每个标题当前是否在视口内，取最靠上的一个作为高亮项
     const visible = new Map<string, boolean>()
 
     const observer = new IntersectionObserver(
@@ -31,11 +30,9 @@ export function Toc({ headings }: { headings: Heading[] }) {
           setActiveId(firstVisible.id)
           return
         }
-        // 全部滚出视口时，高亮最后一个已经滚过去的标题
         const passed = nodes.filter((n) => n.getBoundingClientRect().top < 0)
         if (passed.length > 0) setActiveId(passed[passed.length - 1].id)
       },
-      // 顶部留出吸顶导航的高度，底部收窄以免视口下方的标题抢焦点
       { rootMargin: '-88px 0px -70% 0px', threshold: 0 },
     )
 
@@ -47,18 +44,17 @@ export function Toc({ headings }: { headings: Heading[] }) {
 
   return (
     <nav aria-label="目录">
-      <div className="mb-3.5 text-[11px] uppercase tracking-[0.1em] text-faint">
-        目录
-      </div>
-      <ul className="flex flex-col gap-2.5 border-l border-line pl-3.5">
+      <div className="tag-line mb-3.5 text-faint">Contents</div>
+      <ul className="flex flex-col">
         {headings.map((h) => (
-          <li key={h.id} style={{ paddingLeft: h.depth === 3 ? '0.85rem' : 0 }}>
+          <li key={h.id}>
             <a
               href={`#${h.id}`}
+              style={{ paddingLeft: h.depth === 3 ? '1.5rem' : '0.85rem' }}
               className={
                 activeId === h.id
-                  ? 'block text-[13px] leading-snug text-brand'
-                  : 'block text-[13px] leading-snug text-muted transition-colors hover:text-ink'
+                  ? 'block border-l-2 border-brand py-1.5 text-[12.5px] leading-snug text-brand'
+                  : 'block border-l-2 border-line py-1.5 text-[12.5px] leading-snug text-muted transition-colors hover:border-faint hover:text-ink'
               }
             >
               {h.text}

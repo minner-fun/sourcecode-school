@@ -13,11 +13,11 @@ export default function SeriesIndexPage() {
   const series = getAllSeries()
 
   return (
-    <div className="mx-auto max-w-[1160px] px-5 py-12 sm:px-8">
-      <div className="mb-4 font-mono text-[11px] tracking-[0.14em] text-brand">
+    <div className="mx-auto max-w-[1080px] px-5 py-12 sm:px-8">
+      <div className="tag-line mb-4">
         SERIES
       </div>
-      <h1 className="m-0 mb-3 text-[30px] font-medium leading-tight tracking-tight sm:text-[34px]">
+      <h1 className="display m-0 mb-3 text-[28px] sm:text-[34px]">
         系列
       </h1>
       <p className="m-0 mb-9 max-w-[42em] text-[15.5px] leading-relaxed text-muted">
@@ -25,7 +25,7 @@ export default function SeriesIndexPage() {
       </p>
 
       {series.length === 0 ? (
-        <p className="rounded-xl border border-dashed border-line p-8 text-center text-sm text-muted">
+        <p className="border border-dashed border-line p-8 text-center text-sm text-muted">
           还没有系列。在文章 frontmatter 里加 series 与 seriesOrder 即可自动成组。
         </p>
       ) : (
@@ -34,7 +34,7 @@ export default function SeriesIndexPage() {
             <Link
               key={s.slug}
               href={`/series/${s.slug}`}
-              className="flex flex-col gap-3 rounded-xl border border-line bg-surface p-5 transition-colors hover:border-brand-edge"
+              className="flex flex-col gap-3 border-t-2 border-line bg-surface p-5 transition-colors hover:border-brand"
             >
               <div className="flex items-baseline gap-3">
                 <h2 className="m-0 text-[17px] font-medium leading-snug text-ink">

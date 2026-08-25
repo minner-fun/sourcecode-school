@@ -1,7 +1,7 @@
 import type { Metadata } from 'next'
 import { notFound } from 'next/navigation'
 import { getAllTags, getPostsByTag } from '@/lib/posts'
-import { PostCard } from '@/components/ui/PostCard'
+import { PostItem } from '@/components/ui/PostItem'
 import { TagChip } from '@/components/ui/TagChip'
 
 export function generateStaticParams() {
@@ -39,24 +39,24 @@ export default async function TagPage({
   )
 
   return (
-    <div className="mx-auto max-w-[1160px] px-5 py-12 sm:px-8">
-      <div className="mb-4 font-mono text-[11px] tracking-[0.14em] text-brand">
+    <div className="mx-auto max-w-[1080px] px-5 py-12 sm:px-8">
+      <div className="tag-line mb-4">
         TAG
       </div>
-      <h1 className="m-0 mb-3 text-[30px] font-medium leading-tight tracking-tight sm:text-[34px]">
+      <h1 className="display m-0 mb-3 text-[28px] sm:text-[34px]">
         {label}
       </h1>
       <p className="m-0 mb-8 text-[15.5px] text-muted">共 {posts.length} 篇</p>
 
-      <div className="grid gap-6 sm:grid-cols-2 xl:grid-cols-3">
+      <div>
         {posts.map((post) => (
-          <PostCard key={post.slug} post={post} />
+          <PostItem key={post.slug} post={post} />
         ))}
       </div>
 
       {others.length > 0 ? (
         <div className="mt-12 border-t border-line pt-7">
-          <div className="mb-3.5 text-[11px] uppercase tracking-[0.1em] text-faint">
+          <div className="tag-line mb-3.5 border-b border-line pb-2 text-faint">
             其他标签
           </div>
           <div className="flex flex-wrap gap-2">

@@ -11,33 +11,29 @@ export const metadata: Metadata = {
 
 export default function ToolsPage() {
   return (
-    <div className="mx-auto max-w-[1160px] px-5 py-12 sm:px-8">
-      <div className="mb-4 font-mono text-[11px] tracking-[0.14em] text-brand">
-        TOOLS
-      </div>
-      <h1 className="m-0 mb-3 text-[30px] font-medium leading-tight tracking-tight sm:text-[34px]">
-        工具
-      </h1>
-      <p className="m-0 mb-9 max-w-[42em] text-[15.5px] leading-relaxed text-muted">
+    <div className="mx-auto max-w-[1080px] px-5 py-12 sm:px-8">
+      <div className="tag-line mb-4">Tools</div>
+      <h1 className="display m-0 mb-4 text-[28px] sm:text-[34px]">工具</h1>
+      <p className="m-0 mb-10 max-w-[40em] text-[15px] leading-[1.85] text-muted">
         日常抓包与调试里反复用到的几个小工具。全部在浏览器本地运行，粘进去的内容不会发到任何服务器。
       </p>
 
-      <div className="grid gap-5 md:grid-cols-2">
+      <div className="border-t border-ink">
         {tools.map((tool) => {
           const ready = tool.status === 'ready'
           const body = (
             <>
-              <div className="flex items-center gap-2.5">
-                <h2 className="m-0 text-[17px] font-medium leading-snug text-ink">
+              <div className="flex items-baseline gap-3">
+                <h2
+                  className={`m-0 text-[16px] font-semibold leading-snug ${ready ? 'text-ink' : 'text-muted'}`}
+                >
                   {tool.title}
                 </h2>
-                {!ready ? (
-                  <span className="ml-auto shrink-0 rounded border border-line px-1.5 py-0.5 font-mono text-[10px] text-faint">
-                    计划中
-                  </span>
-                ) : null}
+                <span className="rail ml-auto shrink-0">
+                  {ready ? '可用' : '计划中'}
+                </span>
               </div>
-              <p className="m-0 text-[13px] leading-relaxed text-muted">
+              <p className="m-0 mt-2 max-w-[46em] text-[13.5px] leading-relaxed text-muted">
                 {tool.desc}
               </p>
             </>
@@ -47,14 +43,14 @@ export default function ToolsPage() {
             <Link
               key={tool.slug}
               href={`/tools/${tool.slug}`}
-              className="flex flex-col gap-2.5 rounded-xl border border-line bg-surface p-5 transition-colors hover:border-brand-edge"
+              className="group block border-b border-line py-5 [&_h2]:decoration-brand-edge [&_h2]:underline-offset-[5px] group-hover:[&_h2]:underline"
             >
               {body}
             </Link>
           ) : (
             <div
               key={tool.slug}
-              className="flex flex-col gap-2.5 rounded-xl border border-dashed border-line p-5 opacity-70"
+              className="block border-b border-line py-5 opacity-60"
             >
               {body}
             </div>

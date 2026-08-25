@@ -6,12 +6,9 @@ export function SectionTitle({
   action?: React.ReactNode
 }) {
   return (
-    <div className="mb-5 flex items-baseline gap-3.5">
-      <h2 className="m-0 text-[13px] font-medium uppercase tracking-[0.1em] text-brand">
-        {children}
-      </h2>
-      <span className="h-px flex-1 bg-gradient-to-r from-line to-transparent" />
-      {action}
+    <div className="mb-1 flex items-baseline gap-4 border-b border-ink pb-2.5">
+      <h2 className="tag-line m-0">{children}</h2>
+      {action ? <div className="ml-auto">{action}</div> : null}
     </div>
   )
 }
