@@ -12,3 +12,9 @@ next-env.d.ts
 example/独立开发者头像升级/
 example/*/export/backgrounds/*.png
 example/粘贴的图像.png
+
+# Vercel CLI 生成：项目链接信息与含 OIDC token 的本地环境变量
+.vercel
+.env*
+# 但 .env.example 是要入库的模板
+!.env.example
