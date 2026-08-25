@@ -139,9 +139,16 @@ function parse(file: string): Post {
 
 let cached: Post[] | null = null
 
-/** 全部文章，按日期倒序。生产构建下过滤掉草稿。 */
+/**
+ * 全部文章，按日期倒序。生产构建下过滤掉草稿。
+ *
+ * 开发环境不走缓存：文章是用 fs 读的，不在模块依赖图里，
+ * Turbopack 不会因为 content/posts/ 变动而重新求值这个模块。
+ * 一旦缓存住，改完文章必须重启 dev 才看得到——写作时这是不能接受的。
+ * 生产构建保留缓存，否则每生成一个页面都要把全部 MDX 重读重解析一遍。
+ */
 export function getAllPosts(): Post[] {
-  if (cached) return cached
+  if (cached && process.env.NODE_ENV !== 'development') return cached
   const posts = mdxFiles(POSTS_DIR)
     .map(parse)
     .filter((p) => !p.draft || process.env.NODE_ENV === 'development')
