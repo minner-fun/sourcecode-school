@@ -4,12 +4,33 @@
  */
 
 /**
- * 站点主域名。国内节点与海外节点部署同一份代码时，
- * 用环境变量区分，保证 canonical / sitemap / RSS 里的绝对地址正确。
+ * 站点主域名，决定 canonical / sitemap / RSS 里的绝对地址。
+ *
+ * 优先级：显式配置 > Vercel 注入的生产域名 > 本地 > 兜底。
+ *
+ * 中间那一档很关键：正式域名还没接上时，如果直接兜底到 sourcecode.school，
+ * canonical 会全部指向一个不存在的域名——等于告诉搜索引擎别收录当前这个站。
+ * Vercel 会注入 VERCEL_PROJECT_PRODUCTION_URL（稳定的生产域名，不随部署变），
+ * 用它就能让 *.vercel.app 阶段的站正常被收录。
  */
-export const siteUrl = (
-  process.env.NEXT_PUBLIC_SITE_URL ?? 'https://sourcecode.school'
-).replace(/\/$/, '')
+function resolveSiteUrl(): string {
+  const explicit = process.env.NEXT_PUBLIC_SITE_URL
+  if (explicit) return explicit.replace(/\/$/, '')
+
+  const vercel = process.env.VERCEL_PROJECT_PRODUCTION_URL
+  if (vercel) return `https://${vercel}`
+
+  if (process.env.NODE_ENV === 'development') return 'http://localhost:3000'
+
+  // 自建节点上两个变量都没配就会走到这里，多半是漏配了，构建时提醒一次
+  console.warn(
+    '[site] 未设置 NEXT_PUBLIC_SITE_URL，canonical / sitemap / RSS 将使用默认域名。' +
+      '自建部署请在环境变量里配置实际域名。',
+  )
+  return 'https://sourcecode.school'
+}
+
+export const siteUrl = resolveSiteUrl()
 
 export const site = {
   name: 'sourcecode.school',

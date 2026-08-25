@@ -98,6 +98,32 @@ GET /api/item?id=1
 代码块支持 `title="文件名"`、`showLineNumbers`、`{3-5}` 高亮指定行、`/token/` 高亮指定词。
 高亮在构建时由 shiki 完成，页面上没有对应的客户端 JS。
 
+## 发一篇文章
+
+```bash
+pnpm new "文章标题" reverse   # 栏目：reverse | engineering | news
+# 改 slug、写正文
+pnpm dev                     # localhost:3000 预览，改完刷新浏览器即可
+# frontmatter 里 draft 改成 false
+git add . && git commit && git push   # Vercel 自动部署
+pnpm export:post <slug>      # 导出公众号 / 知乎版本
+```
+
+草稿（`draft: true`）只在本地 `pnpm dev` 可见，不会进生产构建。
+
+> 文章内容是用 `fs` 读的，不在模块依赖图里，所以浏览器不会自动刷新——
+> 改完手动按一下刷新。开发环境不走缓存，刷新即是最新。
+
+### 分发顺序别搞反
+
+**先发自己的站，收录之后再发知乎和公众号。**
+
+反过来做，知乎的域名权重远高于新站，搜索引擎会把知乎那份判成原创、
+把你自己的站判成转载——你自己的文章，你的站排在别人后面，事后很难纠正。
+
+稳妥节奏：站上先发 → 提交百度和 Google 收录 → 隔一两天再外发，
+且外发版本文末带原文链接。
+
 ## 一稿多发
 
 站点是沉淀，流量主要来自公众号、知乎、掘金。一份 MDX 导出成各平台能直接用的形态：
@@ -118,7 +144,26 @@ pnpm export:post --all      # 全部
 
 ## 部署
 
-国内为主、兼顾海外，建议双域名双节点，同一份代码：
+当前走 Vercel：连上 GitHub 仓库后，push 到主分支即自动构建部署，不需要额外 CI。
+
+### 站点地址是怎么确定的
+
+`lib/site.ts` 里的 `siteUrl` 决定 canonical、sitemap、RSS 里的绝对地址，按这个优先级取：
+
+1. `NEXT_PUBLIC_SITE_URL` —— 显式配置，接上正式域名后在 Vercel 环境变量里设它
+2. `VERCEL_PROJECT_PRODUCTION_URL` —— Vercel 自动注入的稳定生产域名
+3. 本地开发 → `http://localhost:3000`
+4. 都没有 → 打印警告并兜底
+
+第 2 档是刻意留的：正式域名还没接上时，如果直接兜底到 `sourcecode.school`，
+canonical 会全部指向一个不存在的域名，等于告诉搜索引擎别收录当前这个站。
+
+自建节点（香港 / 国内）部署时**必须**显式设置 `NEXT_PUBLIC_SITE_URL`，
+漏配会在构建日志里看到警告。
+
+### 以后要接的两个节点
+
+国内为主、兼顾海外时，建议双域名双节点，同一份代码：
 
 | | 国内节点 | 海外节点 |
 | --- | --- | --- |
@@ -126,8 +171,6 @@ pnpm export:post --all      # 全部
 | 托管 | 静态托管 + CDN（OSS / COS）或轻量服务器 | Vercel / Cloudflare |
 | SEO | 百度、微信搜一搜 | Google |
 | 用途 | 接单转化，访问速度是硬指标 | 作品集、远程岗位、海外客户 |
-
-两边分别设置 `NEXT_PUBLIC_SITE_URL`，保证各自的 canonical、sitemap、RSS 地址正确。
 
 > `.school` 这类后缀大概率不在工信部允许备案的白名单里，需要自己核实。
 > 备不了案就用不了国内主机和国内 CDN，这是选国内域名时要先确认的事。
