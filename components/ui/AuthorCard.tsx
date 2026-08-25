@@ -1,14 +1,17 @@
 import Link from 'next/link'
+import Image from 'next/image'
 import { site } from '@/lib/site'
 
 export function AuthorCard() {
   return (
     <div className="flex flex-col gap-4 rounded-2xl border border-brand-edge bg-brand-wash p-5 sm:flex-row sm:gap-5">
-      <div className="grid size-14 shrink-0 place-items-center rounded-xl border border-dashed border-line text-center font-mono text-[9px] leading-tight text-faint">
-        头像
-        <br />
-        占位
-      </div>
+      <Image
+        src={site.author.avatar}
+        alt={site.author.name}
+        width={56}
+        height={56}
+        className="size-14 shrink-0 rounded-xl border border-line"
+      />
       <div className="flex-1">
         <div className="mb-1.5 text-base font-medium text-ink">
           关于 {site.author.name}

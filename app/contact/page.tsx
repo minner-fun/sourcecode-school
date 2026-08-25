@@ -1,4 +1,5 @@
 import type { Metadata } from 'next'
+import Image from 'next/image'
 import { site } from '@/lib/site'
 
 export const metadata: Metadata = {
@@ -47,11 +48,14 @@ export default function ContactPage() {
         </div>
 
         <div className="flex flex-col items-center gap-3 rounded-xl border border-line bg-surface p-4">
-          <div className="grid aspect-square w-full place-items-center rounded-lg border border-dashed border-line text-center font-mono text-[10px] leading-relaxed text-faint">
-            微信二维码
-            <br />
-            放到 public/wechat-qr.png
-          </div>
+          {/* 二维码必须保持浅色底才扫得出来，深色模式下也不反转 */}
+          <Image
+            src="/wechat-qr.png"
+            alt="微信二维码，扫码添加 Minner"
+            width={720}
+            height={720}
+            className="w-full rounded-lg border border-line bg-white"
+          />
           <p className="m-0 text-center text-[12.5px] text-muted">
             扫码添加，备注来意
           </p>

@@ -1,4 +1,5 @@
 import type { Metadata } from 'next'
+import Image from 'next/image'
 import { services, steps, declined } from '@/lib/business'
 import { site } from '@/lib/site'
 import { InquiryForm } from '@/components/ui/InquiryForm'
@@ -36,11 +37,14 @@ export default function HirePage() {
               需求提供目标平台、字段范围与数据量后即可评估，无法承接的会直接说明。
             </p>
           </div>
-          <div className="grid size-[132px] shrink-0 place-items-center rounded-2xl border border-dashed border-line text-center font-mono text-[10px] leading-relaxed text-faint">
-            头像占位
-            <br />
-            400 × 400
-          </div>
+          <Image
+            src={site.author.avatar}
+            alt={site.author.name}
+            width={132}
+            height={132}
+            priority
+            className="size-[132px] shrink-0 rounded-2xl border border-line"
+          />
         </div>
       </section>
 

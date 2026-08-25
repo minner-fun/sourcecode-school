@@ -25,11 +25,11 @@ export const site = {
     avatar: '/avatar.png',
   },
   contacts: {
-    wechat: 'your-wechat-id',
-    email: 'hi@sourcecode.school',
+    wechat: 'NarraData',
+    email: 'minner.fun@gmail.com',
     qq: '',
     telegram: '',
-    github: 'https://github.com/yourname',
+    github: 'https://github.com/minner-fun',
   },
   /** 备案号，国内节点必填，留空则页脚不显示 */
   icp: '',

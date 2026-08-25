@@ -1,0 +1,177 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=Noto+Sans+SC:wght@400;500;700&display=swap" rel="stylesheet">
+<style>
+  *{box-sizing:border-box}
+  body{margin:0}
+  @keyframes floaty{0%,100%{transform:translateY(0)}50%{transform:translateY(-5px)}}
+</style>
+</helmet>
+
+<div style="min-height:100vh;background:radial-gradient(1100px 640px at 72% -8%, #1b1733 0%, #0c0b14 55%, #08070d 100%);font-family:'Noto Sans SC','Space Grotesk',sans-serif;color:#e9e7f2;padding:54px 48px 80px;">
+
+  <!-- header -->
+  <div style="max-width:1180px;margin:0 auto 40px;">
+    <div style="font-family:'Space Grotesk',sans-serif;font-size:13px;letter-spacing:3px;text-transform:uppercase;color:#7b6bff;font-weight:600;margin-bottom:12px;">Direction 01 · Pixel Punk</div>
+    <h1 style="font-family:'Space Grotesk',sans-serif;font-size:44px;line-height:1.05;font-weight:700;margin:0 0 14px;letter-spacing:-1px;">Minner，像素 PFP 系列</h1>
+    <p style="font-size:16px;line-height:1.7;color:#a9a6c0;margin:0;max-width:720px;">把你现在的护目镜形象像素化重塑，烘焙纯色背景，做成一套可换配色的 trait——像 X 上常见的 NFT 头像系列。点下面任意配色即可在主场景中预览。</p>
+  </div>
+
+  <!-- hero -->
+  <div style="max-width:1180px;margin:0 auto;display:grid;grid-template-columns:380px 1fr;gap:36px;align-items:start;">
+
+    <!-- left: avatar + sizes -->
+    <div style="background:linear-gradient(180deg,rgba(255,255,255,0.045),rgba(255,255,255,0.02));border:1px solid rgba(255,255,255,0.08);border-radius:24px;padding:30px;">
+      <div style="display:flex;justify-content:center;margin-bottom:22px;">
+        <div style="width:212px;height:212px;border-radius:{{ heroR }};overflow:hidden;box-shadow:0 18px 50px -16px rgba(0,0,0,0.75);animation:floaty 6s ease-in-out infinite;">
+          <img src="{{ heroImg }}" style="width:100%;height:100%;display:block;"/>
+        </div>
+      </div>
+
+      <div style="display:flex;align-items:baseline;justify-content:space-between;margin-bottom:18px;">
+        <div style="font-family:'Space Grotesk',sans-serif;font-size:20px;font-weight:600;">Pixel Punk · {{ heroName }}</div>
+        <div style="display:flex;gap:6px;">
+          <button onClick="{{ setCircle }}" style="{{ circleBtn }}">圆</button>
+          <button onClick="{{ setSquare }}" style="{{ squareBtn }}">方</button>
+        </div>
+      </div>
+
+      <div style="display:flex;align-items:center;gap:16px;padding:16px;background:rgba(0,0,0,0.28);border-radius:14px;">
+        <div style="width:56px;height:56px;border-radius:{{ heroR }};overflow:hidden;flex:none;"><img src="{{ heroImg }}" style="width:100%;height:100%;display:block;"/></div>
+        <div style="width:40px;height:40px;border-radius:{{ heroR }};overflow:hidden;flex:none;"><img src="{{ heroImg }}" style="width:100%;height:100%;display:block;"/></div>
+        <div style="width:28px;height:28px;border-radius:{{ heroR }};overflow:hidden;flex:none;"><img src="{{ heroImg }}" style="width:100%;height:100%;display:block;"/></div>
+        <div style="width:18px;height:18px;border-radius:{{ heroR }};overflow:hidden;flex:none;"><img src="{{ heroImg }}" style="width:100%;height:100%;display:block;"/></div>
+        <span style="margin-left:auto;font-size:11px;color:#6f6c89;">多尺寸可读</span>
+      </div>
+    </div>
+
+    <!-- right: X profile mock -->
+    <div style="display:flex;flex-direction:column;gap:20px;">
+      <div style="background:#15141c;border:1px solid rgba(255,255,255,0.08);border-radius:18px;overflow:hidden;">
+        <div style="height:140px;background:{{ banner }};"></div>
+        <div style="padding:0 24px 22px;position:relative;">
+          <div style="width:96px;height:96px;border-radius:50%;overflow:hidden;border:4px solid #15141c;margin-top:-48px;box-shadow:0 8px 20px -8px rgba(0,0,0,0.6);">
+            <img src="{{ heroImg }}" style="width:100%;height:100%;display:block;"/>
+          </div>
+          <div style="display:flex;justify-content:flex-end;margin-top:-44px;margin-bottom:18px;">
+            <div style="border:1px solid rgba(255,255,255,0.25);color:#e9e7f2;font-size:14px;font-weight:600;padding:7px 18px;border-radius:999px;">关注</div>
+          </div>
+          <div style="font-family:'Space Grotesk',sans-serif;font-size:22px;font-weight:700;">Minner</div>
+          <div style="font-size:14px;color:#71708a;margin-top:1px;">@minner</div>
+          <div style="font-size:14px;color:#c9c7da;line-height:1.6;margin-top:12px;">独立开发者 · 传统互联网 × Web3 · build in public 🛠️</div>
+          <div style="display:flex;gap:18px;margin-top:12px;font-size:13px;color:#71708a;">
+            <span><b style="color:#e9e7f2;">128</b> 关注中</span>
+            <span><b style="color:#e9e7f2;">4.2万</b> 关注者</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- contexts row -->
+      <div style="display:flex;gap:14px;">
+        <div style="flex:1;background:#0f0e16;border:1px solid rgba(255,255,255,0.07);border-radius:14px;padding:16px;display:flex;align-items:center;gap:12px;">
+          <div style="width:40px;height:40px;border-radius:20%;overflow:hidden;flex:none;"><img src="{{ heroImg }}" style="width:100%;height:100%;display:block;"/></div>
+          <div><div style="font-size:13px;font-weight:600;">GitHub</div><div style="font-size:12px;color:#71708a;">方形 · 圆角</div></div>
+        </div>
+        <div style="flex:1;background:#0f0e16;border:1px solid rgba(255,255,255,0.07);border-radius:14px;padding:16px;display:flex;align-items:center;gap:12px;">
+          <div style="width:40px;height:40px;border-radius:50%;overflow:hidden;flex:none;"><img src="{{ heroImg }}" style="width:100%;height:100%;display:block;"/></div>
+          <div><div style="font-size:13px;font-weight:600;">微信 / 即刻</div><div style="font-size:12px;color:#71708a;">圆形头像</div></div>
+        </div>
+        <div style="flex:1;background:#0f0e16;border:1px solid rgba(255,255,255,0.07);border-radius:14px;padding:16px;display:flex;align-items:center;gap:12px;">
+          <div style="width:40px;height:40px;border-radius:50%;overflow:hidden;flex:none;border:1px solid rgba(255,255,255,0.1);"><img src="{{ heroImg }}" style="width:100%;height:100%;display:block;"/></div>
+          <div><div style="font-size:13px;font-weight:600;">Discord</div><div style="font-size:12px;color:#71708a;">小尺寸社群</div></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- collection -->
+  <div style="max-width:1180px;margin:44px auto 0;">
+    <div style="display:flex;align-items:baseline;gap:12px;margin-bottom:18px;">
+      <h2 style="font-family:'Space Grotesk',sans-serif;font-size:22px;font-weight:600;margin:0;">配色系列 · The Collection</h2>
+      <span style="font-size:13px;color:#71708a;">点击切换主场景 · 同一角色，7 种 trait</span>
+    </div>
+    <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:16px;">
+      <sc-for list="{{ variants }}" as="v" hint-placeholder-count="7">
+        <div onClick="{{ v.select }}" style="{{ v.cardStyle }}">
+          <div style="width:100%;aspect-ratio:1;border-radius:14px;overflow:hidden;margin-bottom:10px;"><img src="{{ v.img }}" style="width:100%;height:100%;display:block;"/></div>
+          <div style="display:flex;align-items:center;justify-content:space-between;">
+            <span style="font-family:'Space Grotesk',sans-serif;font-size:14px;font-weight:600;">{{ v.name }}</span>
+            <span style="width:12px;height:12px;border-radius:50%;background:{{ v.dot }};"></span>
+          </div>
+        </div>
+      </sc-for>
+    </div>
+  </div>
+
+  <div style="max-width:1180px;margin:40px auto 0;font-size:13px;color:#6f6c89;line-height:1.7;border-top:1px solid rgba(255,255,255,0.07);padding-top:22px;">
+    这些都是矢量（SVG），可无损导出任意尺寸的 PNG（如 400 / 800 / 1024）与圆形 / 方形版本。下一步我可以：① 确定主配色后导出整套平台适配文件；② 微调角色细节（发型 / 配饰 / 眼神光）；③ 顺势延展出配套的 M 字母标。告诉我你最喜欢哪个配色。
+  </div>
+
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script>
+class Component extends DCLogic {
+  state = { sel: 'genesis', circle: true };
+
+  renderVals() {
+    const meta = [
+      { key:'genesis', name:'Genesis', dot:'#00e6ff', banner:'linear-gradient(120deg,#241d57,#5a3fd6 60%,#ff45e0)' },
+      { key:'acid',    name:'Acid',    dot:'#5dff9b', banner:'linear-gradient(120deg,#0f3326,#1c7a52 60%,#d6ff3d)' },
+      { key:'ember',   name:'Ember',   dot:'#ff7a45', banner:'linear-gradient(120deg,#3a1622,#b5402a 60%,#ffd23d)' },
+      { key:'ice',     name:'Ice',     dot:'#7fdcff', banner:'linear-gradient(120deg,#123047,#2f7bb5 60%,#c9a8ff)' },
+      { key:'gold',    name:'Gold',    dot:'#ffd23d', banner:'linear-gradient(120deg,#352d0e,#a3801f 60%,#ff9a3d)' },
+      { key:'void',    name:'Void',    dot:'#e6e6f0', banner:'linear-gradient(120deg,#1d1d24,#4a4a5c 60%,#9a9ab0)' },
+      { key:'bloom',   name:'Bloom',   dot:'#ff45e0', banner:'linear-gradient(120deg,#37123f,#9a2eb0 60%,#00e6ff)' },
+    ];
+    const sel = this.state.sel;
+    const cur = meta.find(m => m.key === sel) || meta[0];
+
+    const variants = meta.map(m => ({
+      name: m.name,
+      img: `assets/pfp-${m.key}.svg`,
+      dot: m.dot,
+      select: () => this.setState({ sel: m.key }),
+      cardStyle: {
+        cursor: 'pointer',
+        padding: '12px',
+        borderRadius: '18px',
+        background: m.key === sel ? 'rgba(123,107,255,0.16)' : 'rgba(255,255,255,0.035)',
+        border: m.key === sel ? '1px solid rgba(123,107,255,0.7)' : '1px solid rgba(255,255,255,0.08)',
+        transition: 'all .15s'
+      }
+    }));
+
+    const tBtn = (on) => ({
+      cursor:'pointer', fontFamily:'Space Grotesk,sans-serif', fontSize:'13px', fontWeight:600,
+      padding:'5px 12px', borderRadius:'8px',
+      background: on ? 'linear-gradient(90deg,#5b4bd6,#7b5bff)' : 'rgba(255,255,255,0.05)',
+      color: on ? '#fff' : '#a9a6c0',
+      border: on ? '1px solid transparent' : '1px solid rgba(255,255,255,0.12)'
+    });
+
+    return {
+      variants,
+      heroImg: `assets/pfp-${sel}.svg`,
+      heroName: cur.name,
+      banner: cur.banner,
+      heroR: this.state.circle ? '50%' : '20%',
+      setCircle: () => this.setState({ circle: true }),
+      setSquare: () => this.setState({ circle: false }),
+      circleBtn: tBtn(this.state.circle),
+      squareBtn: tBtn(!this.state.circle),
+    };
+  }
+}
+</script>
+</body>
+</html>

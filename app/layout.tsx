@@ -53,7 +53,13 @@ export default function RootLayout({
     url: siteUrl,
     description: site.description,
     inLanguage: 'zh-CN',
-    author: { '@type': 'Person', name: site.author.name },
+    author: {
+      '@type': 'Person',
+      name: site.author.name,
+      url: siteUrl,
+      image: `${siteUrl}${site.author.avatar}`,
+      sameAs: [site.contacts.github],
+    },
   }
 
   return (

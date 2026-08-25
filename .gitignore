@@ -6,3 +6,9 @@ export-out/
 .DS_Store
 *.tsbuildinfo
 next-env.d.ts
+
+# 设计素材：保留 .dc.html 画布、头像导出和矢量源，
+# 大尺寸位图渲染件不入库（可从画布重新导出），避免仓库无谓变大
+example/独立开发者头像升级/
+example/*/export/backgrounds/*.png
+example/粘贴的图像.png
