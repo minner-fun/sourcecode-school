@@ -510,15 +510,3 @@ code[data-line-numbers] > [data-line]::before {
 :root[data-scheme='dark'] [data-rehype-pretty-code-figure] pre[data-theme] span {
   color: var(--shiki-dark);
 }
-
-/* 状态阶梯逐行显现，让读者按这个过程实际发生的顺序读到它 */
-@keyframes ladder {
-  from {
-    opacity: 0;
-    transform: translateY(4px);
-  }
-  to {
-    opacity: 1;
-    transform: none;
-  }
-}

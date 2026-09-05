@@ -1,8 +1,8 @@
 import Link from 'next/link'
 import { getAllPosts, getAllSeries, getAllTags } from '@/lib/posts'
-import { categories, site } from '@/lib/site'
+import { site } from '@/lib/site'
 import { PostItem } from '@/components/ui/PostItem'
-import { StatusLadder } from '@/components/ui/StatusLadder'
+import { CategoryGrid } from '@/components/ui/CategoryGrid'
 import { AboutCard } from '@/components/ui/AboutCard'
 import { TagChip } from '@/components/ui/TagChip'
 import { SectionTitle } from '@/components/ui/SectionTitle'
@@ -15,38 +15,38 @@ export default function HomePage() {
 
   return (
     <>
+      {/*
+        开场只做一件事：说清这站是什么，然后立刻交出三条线的入口。
+        栏目卡自带标题和说明，不需要再加一层「三条线」的小标题。
+      */}
       <section className="border-b border-line">
-        <div className="mx-auto grid max-w-[1080px] items-center gap-10 px-5 py-14 sm:px-8 lg:grid-cols-[minmax(0,1fr)_380px] lg:gap-16 lg:py-20">
-          <div>
-            <div className="tag-line mb-5">
-              Crawler · Reverse engineering · Data
-            </div>
-            <h1 className="display m-0 mb-5 max-w-[16em] text-[30px] sm:text-[38px]">
-              {site.tagline}
-            </h1>
-            <p className="m-0 max-w-[38em] text-[15px] leading-[1.85] text-muted">
-              {site.description}
-            </p>
+        <div className="mx-auto max-w-[1080px] px-5 py-12 sm:px-8 sm:py-14">
+          {/* 与下方栏目卡的 en 标签一一对应，让眼眉承担结构提示而不只是装饰 */}
+          <div className="tag-line mb-5">
+            Reverse · Teardown · Engineering
           </div>
-          <StatusLadder />
+          <h1 className="display m-0 mb-5 max-w-[15em] text-[30px] sm:text-[40px]">
+            {site.tagline}
+          </h1>
+          <p className="m-0 mb-10 max-w-[36em] text-[15px] leading-[1.85] text-muted">
+            {site.description}
+          </p>
+          <CategoryGrid posts={posts} />
         </div>
       </section>
 
-      <div className="mx-auto grid max-w-[1080px] grid-cols-1 items-start gap-12 px-5 py-12 sm:px-8 lg:grid-cols-[minmax(0,1fr)_260px] lg:gap-16">
+      <div className="mx-auto grid max-w-[1080px] grid-cols-1 items-start gap-12 px-5 py-11 sm:px-8 lg:grid-cols-[minmax(0,1fr)_260px] lg:gap-16">
         <div>
           <SectionTitle
             action={
-              <div className="hidden gap-4 sm:flex">
-                {categories.map((c) => (
-                  <Link
-                    key={c.slug}
-                    href={`/category/${c.slug}`}
-                    className="text-[12.5px] text-muted transition-colors hover:text-brand"
-                  >
-                    {c.label}
-                  </Link>
-                ))}
-              </div>
+              posts.length > latest.length ? (
+                <Link
+                  href="/archive"
+                  className="font-mono text-[12px] text-muted transition-colors hover:text-brand"
+                >
+                  全部 {posts.length} 篇 →
+                </Link>
+              ) : null
             }
           >
             最新
@@ -64,16 +64,20 @@ export default function HomePage() {
             </div>
           )}
 
-          {posts.length > latest.length ? (
-            <div className="pt-6">
-              <Link
-                href="/archive"
-                className="font-mono text-[12.5px] text-brand hover:underline"
-              >
-                全部 {posts.length} 篇 →
-              </Link>
-            </div>
-          ) : null}
+          <div className="flex flex-wrap gap-x-6 gap-y-2 pt-6">
+            <Link
+              href="/archive"
+              className="font-mono text-[12.5px] text-brand hover:underline"
+            >
+              按年份归档 →
+            </Link>
+            <Link
+              href="/feed.xml"
+              className="font-mono text-[12.5px] text-muted transition-colors hover:text-brand"
+            >
+              RSS 订阅
+            </Link>
+          </div>
         </div>
 
         <aside className="flex flex-col gap-9 lg:sticky lg:top-24">
