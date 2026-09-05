@@ -1,0 +1,468 @@
+---
+title: Codex 生成 React 组件：一句「不要引入任何第三方依赖」，把 Portal 砍掉了
+date: 2026-09-05
+category: engineering
+tags: [Codex, 前端, 工程化]
+excerpt: 一句话需求生成的模态框自带焦点陷阱、Esc 关闭与完整 aria；换上精心写的提示词反而丢了 createPortal。tsc --strict 和 jsx-a11y 两轮全过，差异只能靠读代码找出来。
+draft: false
+---
+
+> 本文是 **2026-09-01 的实跑**：`codex-cli 0.151.0`，模型 `gpt-5.6-sol`。
+> 判据不是我的主观感觉，是 **`tsc --strict` + `eslint`（含 `jsx-a11y`）的输出**，
+> 加上逐行读代码。生成的组件全文和检查结果都在文里，脚本在文末。
+> **如果你要那段可复用提示词，直接看第五节——连同它的副作用一起。**
+
+## 前言
+
+「AI 秒级生成前端组件」这句话我一直有点怀疑。生成得快是肯定的，问题在于**生成完到能上线之间还有多远**——模态框的焦点陷阱、Esc 关闭、滚动锁定、`aria-*`，这些是每次都要手补的，还是它自己就带？
+
+所以这次不靠感觉，用工具量：
+
+- **`tsc --noEmit --strict`** —— 类型过不过
+- **`eslint` + `jsx-a11y`** —— 无障碍和规范
+- **逐行读** —— 工具看不出来的那部分
+
+两轮：**R1 一句话需求**（多数人真实的写法），**R2 换成一段「可复用提示词」**，看能补回多少。
+
+结果有两个意外，方向还相反：
+
+1. **R1 的质量远超预期。** 一句「写一个 React 模态框组件，接收 open、onClose、children」，它交出来的东西带焦点陷阱、Esc 关闭、关闭后焦点还原、body 滚动锁定并还原、`role`/`aria-modal`/`aria-labelledby`、所有副作用成对清理、SSR 守卫。**tsc 和 eslint 全过。**
+2. **R2 那段精心写的提示词，让它丢了 Portal。** 罪魁是其中一句听起来最无害的话：「不要引入任何第三方依赖」。
+
+第二条才是这篇文章真正想说的。
+
+---
+
+## 一、实验怎么搭的
+
+要让 `tsc` 和 `eslint` 跑得起来，得给生成的组件一个最小工程骨架。我直接软链了旁边一个 Next.js 项目的 `node_modules`：
+
+```bash
+setup_project() {
+  local d="$1"
+  mkdir -p "$d"
+  ln -s "$REF/node_modules" "$d/node_modules"      # 借现成的 react/ts/eslint
+  cat > "$d/tsconfig.json" <<'JSON'
+{
+  "compilerOptions": {
+    "target": "ES2022",
+    "lib": ["ES2022", "DOM", "DOM.Iterable"],
+    "jsx": "react-jsx",
+    "moduleResolution": "bundler",
+    "strict": true,
+    "noEmit": true,
+    "skipLibCheck": true
+  },
+  "include": ["*.tsx", "*.ts"]
+}
+JSON
+}
+```
+
+eslint 配置只开两样：`js.configs.recommended` 和 `jsx-a11y` 的推荐规则：
+
+```javascript
+import js from "@eslint/js";
+import a11y from "eslint-plugin-jsx-a11y";
+export default [
+  js.configs.recommended,
+  {
+    files: ["**/*.tsx"],
+    languageOptions: {
+      parser: (await import("@typescript-eslint/parser")).default,
+      parserOptions: { ecmaFeatures: { jsx: true }, sourceType: "module" },
+    },
+    plugins: { "jsx-a11y": a11y },
+    rules: { ...a11y.configs.recommended.rules, "no-unused-vars": "off" },
+  },
+];
+```
+
+版本：`tsc 5.9.3` / `eslint 9.39.5`。
+
+---
+
+## 二、R1：一句话需求，结果比我预期好太多
+
+提示词就这一句：
+
+```text
+写一个 React 模态框组件 Modal.tsx，TypeScript，接收 open、onClose、children。
+```
+
+**没提**：焦点管理、键盘、无障碍、SSR、清理。
+
+它交出来 170 行。核心部分：
+
+```tsx
+useEffect(() => {
+  if (!open) return;
+
+  const previouslyFocused = document.activeElement as HTMLElement | null;
+  const previousOverflow = document.body.style.overflow;
+  document.body.style.overflow = "hidden";
+
+  const focusTimer = window.setTimeout(() => {
+    const firstFocusable =
+      dialogRef.current?.querySelector<HTMLElement>(focusableElements);
+    (firstFocusable ?? dialogRef.current)?.focus();
+  });
+
+  const handleKeyDown = (event: globalThis.KeyboardEvent) => {
+    if (event.key === "Escape") {
+      onClose();
+      return;
+    }
+    if (event.key !== "Tab" || !dialogRef.current) return;
+
+    const elements = Array.from(
+      dialogRef.current.querySelectorAll<HTMLElement>(focusableElements),
+    );
+    const first = elements[0];
+    const last = elements[elements.length - 1];
+
+    if (!first || !last) {
+      event.preventDefault();
+      dialogRef.current.focus();
+    } else if (event.shiftKey && document.activeElement === first) {
+      event.preventDefault();
+      last.focus();
+    } else if (!event.shiftKey && document.activeElement === last) {
+      event.preventDefault();
+      first.focus();
+    }
+  };
+
+  document.addEventListener("keydown", handleKeyDown);
+
+  return () => {
+    window.clearTimeout(focusTimer);
+    document.removeEventListener("keydown", handleKeyDown);
+    document.body.style.overflow = previousOverflow;
+    previouslyFocused?.focus();
+  };
+}, [open, onClose]);
+```
+
+**没要求它做、但它做了的**：
+
+| 做了什么 | 为什么重要 |
+|---|---|
+| **焦点陷阱** | Tab / Shift+Tab 在对话框内循环，不会跑到背后的页面 |
+| **Esc 关闭** | 键盘用户的默认预期 |
+| **打开时移入焦点** | 否则读屏用户不知道弹窗出现了 |
+| **关闭后焦点还原** | `previouslyFocused?.focus()`，回到触发它的那个按钮 |
+| **滚动锁定并还原** | 存了 `previousOverflow`，不是硬写 `""` |
+| **四个副作用全部成对清理** | timer、listener、overflow、focus |
+
+渲染部分：
+
+```tsx
+return createPortal(
+  <div style={styles.container}>
+    <button type="button" aria-label="Close modal"
+            style={styles.backdrop} onClick={onClose} />
+    <div ref={dialogRef} role="dialog" aria-modal="true"
+         aria-labelledby={titleId} tabIndex={-1} style={styles.dialog}>
+      <span id={titleId} style={styles.visuallyHidden}>Modal dialog</span>
+      ...
+    </div>
+  </div>,
+  document.body,
+);
+```
+
+三个细节值得挑出来：
+
+- **`createPortal(..., document.body)`** —— 挂到 body，逃出父级的层叠上下文（这条第四节会变成主角）
+- **遮罩层用 `<button>` 而不是裸 `<div onClick>`** —— 后者是 `jsx-a11y` 会直接报错的写法（键盘用户点不到）
+- **`useId()` 生成 `aria-labelledby` 的 id** —— 而不是硬编码一个可能冲突的字符串
+
+### 搜索框那个也一样
+
+```tsx
+const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+const onSearchRef = useRef(onSearch);
+onSearchRef.current = onSearch;          // ← 用 ref 存回调，避免防抖被重置
+
+useEffect(() => {
+  return () => {
+    if (timerRef.current !== null) clearTimeout(timerRef.current);
+  };
+}, []);
+```
+
+**用 ref 存 `onSearch`** 这一手是关键：如果直接把 `onSearch` 写进 `useEffect` 依赖，父组件每次重渲染都会重建这个函数，防抖计时器就会被反复清掉——一个很常见的坑。它自己避开了。
+
+---
+
+## 三、工具检查：三个组件全过
+
+```text
+[R1] modal
+  tsc --strict : 通过 √
+  eslint a11y  : 通过 √
+
+[R1] search
+  tsc --strict : 通过 √
+  eslint a11y  : 通过 √
+
+[R2] modal
+  tsc --strict : 通过 √
+  eslint a11y  : 通过 √
+```
+
+**`tsc --strict` 零错误，`eslint` + `jsx-a11y` 零告警。**
+
+![工具全过，差异只能靠读代码找出来——这本身就是个结论](/figures/codex-react-component-audit-1.png)
+
+*工具全过，差异只能靠读代码找出来——这本身就是个结论*
+
+这里有个方法论上的教训：**我原本指望工具能区分 R1 和 R2 的质量，结果它们区分不出来。**
+
+`tsc` 管的是类型，`jsx-a11y` 管的是**静态可推断的**无障碍问题（`<div onClick>` 没有 role、`<img>` 没有 alt 这类）。而「有没有焦点陷阱」「关闭后焦点还不还原」「用没用 Portal」——**这些都是行为，静态检查看不见**。
+
+所以下面第四节的差异，是我一行行读出来的。
+
+---
+
+## 四、R2 那句「不要引入任何第三方依赖」，把 Portal 干掉了
+
+第二轮我换上一段精心写的提示词（全文在第五节），额外要求了：显式 interface、键盘可达、正确的 aria、副作用成对清理、**不要引入任何第三方依赖**。
+
+R2 输出 205 行（比 R1 多 35 行）。`diff` 一看，有升有降。
+
+### 升的部分：焦点元素过滤
+
+R1 的可聚焦元素选择器是直接 `querySelectorAll` 拿到就用。R2 加了一层过滤：
+
+```tsx
+function getFocusableElements(container: HTMLElement): HTMLElement[] {
+  return Array.from(
+    container.querySelectorAll<HTMLElement>(FOCUSABLE_SELECTOR),
+  ).filter(
+    (element) =>
+      element.tabIndex >= 0 &&
+      !element.hidden &&
+      element.getAttribute("aria-hidden") !== "true" &&
+      !element.closest("[hidden], [inert]"),
+  );
+}
+```
+
+**这是实打实的进步。** R1 的版本会把 `display:none` 之外的隐藏元素、`aria-hidden` 的元素也算进焦点循环——用户会 Tab 到一个看不见的地方。R2 把它们过滤掉了，还考虑了 `[inert]`。
+
+选择器本身也更全（多了 `area[href]`、`iframe`、`object`、`embed`、`[contenteditable]`，并排除了 `input[type=hidden]`）。
+
+### 降的部分：Portal 没了
+
+```diff
+ import {
+   type CSSProperties,
+-  type ElementRef,
+   type ReactNode,
+   useEffect,
+   useId,
+   useRef,
+ } from "react";
+-import { createPortal } from "react-dom";
+```
+
+R2 的渲染变成了原地返回：
+
+```tsx
+  if (!open) {
+    return null;
+  }
+
+  return (
+    <div style={overlayStyle}>
+      ...
+```
+
+**没有 `createPortal`，直接渲染在组件所在的位置。**
+
+`grep` 确认了一遍：
+
+```text
+=== R1 用 Portal 吗
+9:import { createPortal } from "react-dom";
+81:  return createPortal(
+111:    document.body,
+
+=== R2 用 Portal 吗
+（只有 document.body.style.overflow，没有 createPortal）
+```
+
+**原因几乎可以肯定是我那句「不要引入任何第三方依赖」。** `createPortal` 来自 `react-dom`——那是 React 自己的渲染器，不是第三方库。但模型保守地把它归进了「依赖」。
+
+![一句「不要引入任何第三方依赖」，换来焦点过滤的提升，赔掉了 Portal](/figures/codex-react-component-audit-2.png)
+
+*一句「不要引入任何第三方依赖」，换来焦点过滤的提升，赔掉了 Portal*
+
+### 为什么这个回退很严重
+
+模态框不用 Portal，就会被困在父组件的**层叠上下文**里。只要祖先元素上有 `overflow: hidden`、`transform`、`filter`、或者一个比它高的 `z-index`，弹窗就会被裁掉或者压在下面——**而且这个 bug 在小 demo 里根本不出现**，只在真实页面里出现。
+
+这不是我编的场景。我手上一个线上项目就有这么一个提交：
+
+```text
+f7b897a  fix: 分享弹窗用 portal 挂到 body，逃出 header 的层叠上下文
+```
+
+**一模一样的 bug，人踩过一次，AI 因为一句提示词又走了回去。**
+
+### 两轮的完整差异
+
+`diff` 出来的净变化，按性质分：
+
+| 变化 | 方向 | 说明 |
+|---|---|---|
+| 焦点元素过滤 `hidden` / `aria-hidden` / `[inert]` | **提升** | R1 会把隐藏元素算进焦点循环 |
+| 选择器补 `area[href]` / `iframe` / `object` / `embed` / `[contenteditable]` | **提升** | 覆盖更全 |
+| 排除 `input[type=hidden]` | **提升** | R1 的选择器会误收 |
+| 新增 `title?: string` prop 作可访问名 | **提升** | 比硬编码 "Modal dialog" 好 |
+| `onClose` 改用 ref 持有，effect 依赖收窄到 `[open]` | 中性 | 避免回调身份变化重跑 effect，合理写法 |
+| **移除 `createPortal`** | **回退** | ⬅ 本节主角 |
+| 移除 `typeof document === "undefined"` 守卫 | 中性 | 不用 Portal 了，渲染时不再碰 `document` |
+
+**四升、两中性、一回退。** 单看数量是赚的——但那一条回退的严重程度，比四条提升加起来还高。
+
+---
+
+## 五、那段可复用提示词（连同它的坑）
+
+先给出**我实际用的那一版**：
+
+```text
+额外要求（这段是我固定复用的）：
+- TypeScript，props 显式定义 interface，不要 any
+- 键盘可达：Esc 关闭、Tab 焦点不逃出组件、打开时把焦点移进来、关闭后还回去
+- 无障碍：正确的 role / aria-modal / aria-labelledby，不要只靠 div + onClick
+- 副作用要在 useEffect 里成对清理（事件监听、定时器、body 样式）
+- 不要引入任何第三方依赖          ← 这一句是有害的
+```
+
+**改掉最后一句**，换成：
+
+```text
+- 不要引入第三方 npm 包；React / ReactDOM 自带的能力（如 createPortal）该用就用
+```
+
+其余四条我认为是值得固定复用的——它们**明确了「完成」的标准**，而不是描述实现。
+
+### 提示词的一条通用规律
+
+这次的坑不在「我写少了」，在**我写了一句过度收紧的约束**。
+
+> **每一条约束都有副作用。** 越是听起来无害的禁令（「不要引入依赖」「保持简洁」「不要过度设计」），越容易在你看不见的地方砍掉必要的东西。
+
+对照第二轮那句「不要引入任何第三方依赖」：我想防的是它 `npm install` 一个 `react-modal`，结果它连 `react-dom` 都不敢碰。
+
+**写禁令时，把边界说清楚比把语气说重要有用。**
+
+### 一条实操建议
+
+如果你要固定一段提示词，**至少跑一次「不加提示词」的对照**。这次如果我只跑了 R2，会得到一个「加了提示词效果很好」的错误印象——因为我压根不知道 R1 的版本里有 Portal。
+
+---
+
+## 六、所以「秒级生成」到底成不成立
+
+成立，而且比我预期的更成立。但要分清它省了什么。
+
+| | AI 省掉的 | 你还得做的 |
+|---|---|---|
+| **模态框** | 焦点陷阱、Esc、焦点还原、滚动锁、aria、清理 | 确认 Portal 在、接你的设计系统、真机测读屏 |
+| **搜索框** | 防抖、ref 稳定回调、卸载清理 | `aria-label` 目前复用了 placeholder，该换成真 label |
+| **通用** | 类型、`useId`、SSR 守卫 | 空/加载/错误状态（**它一个都没做，因为没人要求**） |
+
+那个「状态覆盖」我也量了：
+
+```text
+      loading                0
+      error                  0
+      empty                  0
+```
+
+三个组件里，`loading` / `error` / 空状态的出现次数**全是 0**。这不算它的错——我的需求里确实没提。但它也**没有主动问**「加载中要显示什么」。
+
+**这就是分界线**：**实现层面的最佳实践它会主动带上，产品层面的状态它只做你说了的。**
+
+---
+
+## 七、复现
+
+```bash
+IPURE_DIR=/path/to/a/react/project \
+  bash drafts/2026-09-01/evidence/03-组件生成实测.sh
+```
+
+`IPURE_DIR` 指向任何一个装了 `react` / `typescript` / `eslint` / `eslint-plugin-jsx-a11y` 的项目就行——脚本只是软链它的 `node_modules`，不改动它。
+
+检查那段是这样跑的：
+
+```bash
+check() {
+  local d="$1" file="$2"
+  echo -n "  tsc --strict : "
+  ( cd "$d" && "$REF/node_modules/.bin/tsc" --noEmit 2>&1 | head -5 ) \
+    | grep -q . && echo "有错" || echo "通过 √"
+  echo -n "  eslint a11y  : "
+  local out
+  out="$( cd "$d" && "$REF/node_modules/.bin/eslint" "$file" 2>&1 \
+          | grep -E 'error|warning' | head -6 )"
+  [ -n "$out" ] && { echo "有问题"; echo "$out"; } || echo "通过 √"
+  echo "  状态覆盖     :"
+  for kw in "loading" "error" "empty\|没有\|暂无\|length === 0"; do
+    printf '      %-22s %s\n' "$kw" "$(grep -icE "$kw" "$d/$file")"
+  done
+}
+```
+
+**但记住第三节**：工具全过不等于两版一样好。真正的差异我是 `diff` 出来、再一行行读出来的。
+
+---
+
+## 小结
+
+1. **一句话需求，R1 的模态框就带了**焦点陷阱、Esc 关闭、打开移焦、关闭还焦、滚动锁定并还原、`role`/`aria-modal`/`aria-labelledby`、`useId`、SSR 守卫
+2. **四个副作用全部成对清理**（timer / listener / overflow / focus），这是最容易漏的地方
+3. **遮罩层用 `<button>` 而不是裸 `<div onClick>`**——它避开了 `jsx-a11y` 会报错的写法
+4. **搜索框用 ref 存回调**，避免父组件重渲染把防抖计时器清掉
+5. **`tsc --strict` + `eslint`（jsx-a11y）三个组件全过**——**工具区分不出两轮的质量差**
+6. **R2 的可复用提示词确实带来了提升**：焦点元素过滤掉 `hidden` / `aria-hidden` / `[inert]`
+7. **但它把 `createPortal` 丢了**——罪魁是我那句「不要引入任何第三方依赖」
+8. **模态框不用 Portal 是真 bug**：被父级层叠上下文困住，小 demo 里不出现，真实页面里才出现
+9. **有真实提交为证**：我手上一个线上项目就有 `fix: 分享弹窗用 portal 挂到 body，逃出 header 的层叠上下文`
+10. **改法**：把「不要引入任何第三方依赖」换成「不要引入第三方 npm 包；React / ReactDOM 自带的能力该用就用」
+11. **固定提示词前，至少跑一次不加提示词的对照**——否则你不知道自己砍掉了什么
+12. **分界线**：实现层面的最佳实践它主动带，产品层面的状态（loading / error / 空）它一个都没做——因为我没说
+
+最后一句：这次的坑不在我写少了，在**我写了一句过度收紧的约束**。**越是听起来无害的禁令，越容易在你看不见的地方砍掉必要的东西。**
+
+---
+
+## 参考
+
+- [OpenAI Codex 官方文档](https://developers.openai.com/codex/)
+- React 文档：[createPortal](https://react.dev/reference/react-dom/createPortal)
+- React 文档：[useId](https://react.dev/reference/react/useId)
+- React 文档：[useEffect 的清理函数](https://react.dev/reference/react/useEffect#connecting-to-an-external-system)
+- MDN：[理解 z-index](https://developer.mozilla.org/zh-CN/docs/Web/CSS/CSS_positioning/Understanding_z_index)（第四节那个 bug 的根源）
+- MDN：[Stacking context](https://developer.mozilla.org/en-US/docs/Web/CSS/CSS_positioning/Understanding_z-index/Stacking_context)（层叠上下文的完整触发条件，英文版更全）
+- MDN：[inert 属性](https://developer.mozilla.org/zh-CN/docs/Web/HTML/Reference/Global_attributes/inert)
+- WAI-ARIA 实践：[Dialog (Modal) Pattern](https://www.w3.org/WAI/ARIA/apg/patterns/dialog-modal/)（焦点管理的权威定义）
+- [eslint-plugin-jsx-a11y 规则列表](https://github.com/jsx-eslint/eslint-plugin-jsx-a11y#supported-rules)
+- TypeScript 文档：[tsconfig 的 strict](https://www.typescriptlang.org/tsconfig/#strict)
+- [WCAG 2.2：2.1.2 无键盘陷阱](https://www.w3.org/WAI/WCAG22/Understanding/no-keyboard-trap.html)
+- [WCAG 2.2：2.4.3 焦点顺序](https://www.w3.org/WAI/WCAG22/Understanding/focus-order.html)
+
+---
+
+> **说明**：本文全部实验在本机临时目录中进行，生成的组件仅用于质量评估，未部署到任何线上环境。
+> 第四节引用的提交来自本人自有项目，用于佐证「没有 Portal 会出什么问题」这一点。
+
+---
+
+你有没有固定复用的组件生成提示词？回去看一眼里面有没有「不要 XX」这类禁令——**跑一次不加它的对照，看看它替你砍掉了什么。**
