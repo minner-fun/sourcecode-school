@@ -14,6 +14,8 @@ const config: NextConfig = {
       { source: '/hire', destination: '/about', permanent: true },
       { source: '/contact', destination: '/about', permanent: true },
       { source: '/cases', destination: '/', permanent: true },
+      // 资讯栏目取消，原有链接落到主线
+      { source: '/category/news', destination: '/category/reverse', permanent: true },
     ]
   },
 }

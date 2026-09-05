@@ -46,7 +46,7 @@ example/            最初的设计稿（Claude Design canvas，不参与构建�
 ## 写文章
 
 ```bash
-pnpm new "文章标题" reverse      # 栏目：reverse | engineering | news
+pnpm new "文章标题" reverse      # 栏目：reverse | teardown | engineering
 ```
 
 生成的文件在 `content/posts/<slug>.mdx`。**slug 是 URL 的一部分，发布后不要再改**，
@@ -58,7 +58,7 @@ pnpm new "文章标题" reverse      # 栏目：reverse | engineering | news
 | --- | --- | --- |
 | `title` | 是 | 文章标题 |
 | `date` | 是 | `YYYY-MM-DD` |
-| `category` | 是 | `reverse` / `engineering` / `news` |
+| `category` | 是 | `reverse`（采集与逆向）/ `teardown`（源码剖析）/ `engineering`（工程实践）|
 | `excerpt` | 是 | 一句话摘要，出现在列表页、RSS、搜索结果和社交卡片里 |
 | `tags` | 否 | 数组，标签页按此聚合 |
 | `cover` | 否 | 封面图路径，如 `/covers/xxx.png` |
@@ -101,7 +101,7 @@ GET /api/item?id=1
 ## 发一篇文章
 
 ```bash
-pnpm new "文章标题" reverse   # 栏目：reverse | engineering | news
+pnpm new "文章标题" reverse   # 栏目：reverse | teardown | engineering
 # 改 slug、写正文
 pnpm dev                     # localhost:3000 预览，改完刷新浏览器即可
 # frontmatter 里 draft 改成 false

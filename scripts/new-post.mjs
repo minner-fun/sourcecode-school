@@ -6,14 +6,21 @@
 import fs from 'node:fs'
 import path from 'node:path'
 
-const [, , title, category = 'reverse'] = process.argv
+// 这是开发期脚本；提前声明可以避免 lib/site.ts 在加载时打出生产环境的域名告警
+process.env.NODE_ENV ||= 'development'
+
+// 栏目列表从 lib/site.ts 读，不在这里再抄一份——抄了迟早和站点定义脱节
+const { categories } = await import('../lib/site.ts')
+const slugs = categories.map((c) => c.slug)
+
+const [, , title, category = slugs[0]] = process.argv
 
 if (!title) {
-  console.error('用法: pnpm new "文章标题" [reverse|engineering|news]')
+  console.error(`用法: pnpm new "文章标题" [${slugs.join('|')}]`)
   process.exit(1)
 }
-if (!['reverse', 'engineering', 'news'].includes(category)) {
-  console.error(`栏目 "${category}" 不存在，可选：reverse / engineering / news`)
+if (!slugs.includes(category)) {
+  console.error(`栏目 "${category}" 不存在，可选：${slugs.join(' / ')}`)
   process.exit(1)
 }
 
