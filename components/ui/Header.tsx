@@ -41,10 +41,10 @@ export function Header() {
         <ThemeToggle />
 
         <Link
-          href="/feed.xml"
-          className="whitespace-nowrap border border-brand px-3.5 py-1.5 font-mono text-[12px] font-medium text-brand transition-colors hover:bg-brand hover:text-bg"
+          href="/subscribe"
+          className="whitespace-nowrap border border-brand px-3.5 py-1.5 text-[12.5px] font-medium text-brand transition-colors hover:bg-brand hover:text-bg"
         >
-          RSS
+          订阅
         </Link>
       </div>
 

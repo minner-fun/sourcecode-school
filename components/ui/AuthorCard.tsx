@@ -27,10 +27,10 @@ export function AuthorCard() {
             关于与联系
           </Link>
           <Link
-            href="/feed.xml"
+            href="/subscribe"
             className="border border-line px-3.5 py-1.5 font-mono text-[12px] font-medium text-ink transition-colors hover:border-brand hover:text-brand"
           >
-            RSS 订阅
+            订阅更新
           </Link>
         </div>
       </div>

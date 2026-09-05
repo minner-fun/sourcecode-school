@@ -6,8 +6,8 @@ export function Footer() {
     <footer className="mt-20 border-t border-line">
       <div className="mx-auto flex max-w-[1080px] flex-wrap items-center gap-x-6 gap-y-2.5 px-5 py-7 font-mono text-[11.5px] text-faint sm:px-8">
         <span>© {new Date().getFullYear()} {site.name}</span>
-        <Link href="/feed.xml" className="transition-colors hover:text-brand">
-          RSS
+        <Link href="/subscribe" className="transition-colors hover:text-brand">
+          订阅
         </Link>
         <Link href="/archive" className="transition-colors hover:text-brand">
           归档

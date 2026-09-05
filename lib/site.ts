@@ -45,6 +45,14 @@ export const site = {
     bio: '长期做数据采集与逆向分析，同时负责采集系统后端与数据管道。方向集中在自媒体与电商平台的数据获取、接口协议还原，以及在此之上的数据工程与分析。',
     avatar: '/avatar.png',
   },
+  /**
+   * 微信公众号。国内读者的订阅行为几乎都在这里，优先级高于 RSS。
+   * qr 留空时订阅页显示「微信里搜名字」的引导，填了则渲染二维码。
+   */
+  wechatMp: {
+    name: '网虫Spider',
+    qr: '',
+  },
   contacts: {
     wechat: 'NarraData',
     email: 'minner.fun@gmail.com',

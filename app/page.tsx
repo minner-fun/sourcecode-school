@@ -72,10 +72,10 @@ export default function HomePage() {
               按年份归档 →
             </Link>
             <Link
-              href="/feed.xml"
+              href="/subscribe"
               className="font-mono text-[12.5px] text-muted transition-colors hover:text-brand"
             >
-              RSS 订阅
+              订阅更新
             </Link>
           </div>
         </div>
