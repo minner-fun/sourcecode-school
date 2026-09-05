@@ -1,0 +1,307 @@
+---
+title: 只用免费数据源能把一个 IP 认到什么程度：9 个源实测，地理位置 5 个 IP 全部对不上
+date: 2026-09-05
+category: reverse
+tags: [IP 情报, 风控, 数据管道]
+excerpt: 不配任何商业 API key，用 RDAP、Team Cymru、DNSBL、Tor 出口表这些免费源，能定出 IP 的归属、路由、类型和暴露面。但地理位置不行——两个免费地理源对五个知名 IP 给出的城市全部不一致，最远差 3865 公里。
+series: ip-intel-engineering
+seriesTitle: IP 情报的工程实录
+seriesOrder: 1
+draft: false
+---
+
+做采集的人迟早要回答一个问题：**手上这个代理 IP 到底干净不干净。**
+
+商业 IP 情报接口能回答，但按调用量计费，而且它给的是一个不解释的数字。这篇不谈商业源，只问一件事：**一分钱不花、一个 key 不配，能把一个 IP 认到什么程度？**
+
+结论先放这里：**「是什么」基本能定，「在哪」完全不能信。**
+
+<Note type="warn">
+本文数据是 2026-09-05 实跑，脚本在文末。IP 情报源的数据随时在变，你重跑得到的数字会和这里不同——**重要的是分歧的存在，不是具体数值**。
+</Note>
+
+## 一、九个不要钱的源，各管一段
+
+我把手上这套采集层里 `kind === "free"` 的源单独拉出来跑。十二个源里九个是免费的：
+
+```text
+== 数据源清单 ==
+  免费  rdap
+  免费  team-cymru
+  免费  ip-api.com
+  商业  ipqualityscore
+  商业  proxycheck.io
+  商业  abuseipdb
+  免费  cloud-ranges
+  免费  tor-exits
+  免费  rdns
+  免费  shodan-internetdb
+  免费  ipwho.is
+  免费  dnsbl
+  合计 12 个，免费 9 个
+```
+
+各自管什么：
+
+| 源 | 拿到什么 | 怎么拿 |
+|---|---|---|
+| **RDAP** | 注册信息：netName、netRange、RIR、注册组织、abuse 邮箱、注册与更新时间 | RIR 的标准接口，不要 key |
+| **Team Cymru** | ASN、路由前缀、ASN 名、注册国 | DNS 查询（`origin.asn.cymru.com`） |
+| **ip-api.com** | 地理、ASN、`isHosting` 判定 | HTTP，免费额度 |
+| **cloud-ranges** | 是不是云厂商 IP 段 | 各家公开的 IP 段清单，本地索引 |
+| **tor-exits** | 是不是 Tor 出口 | 公开出口列表，本地索引 |
+| **rdns** | PTR 记录 | 直接 DNS 反查 |
+| **shodan-internetdb** | 开放端口、CVE、软件指纹 | Shodan 的免费 InternetDB，不要 key |
+| **ipwho.is** | 地理、ASN 兜底 | HTTP |
+| **DNSBL** | 8 个垃圾邮件黑名单 | DNS 查询 |
+
+拿 `8.8.8.8` 跑一遍，每个源单独计时，打印它各自贡献了什么：
+
+```text
+════ 8.8.8.8
+  rdap          1382ms  registry{ netName="GOGL" netRange="8.8.8.0 - 8.8.8.255"
+                        cidr="8.8.8.0/24" rir="ARIN" org="Google LLC"
+                        abuseEmail="network-abuse@google.com" status=["active"] }
+  team-cymru       1ms  asn{ asn=15169 route="8.8.8.0/24"
+                        name="GOOGLE - Google LLC, US" country="US" }
+  ip-api.com     354ms  geo{ country="US" region="Virginia" city="Ashburn" ... }
+                        asn{ asn=15169 org="Google Public DNS" }
+                        flags{ isHosting=true }  usageType="hosting"
+  rdns             0ms  rdns="dns.google"
+  shodan-internetdb 781ms  rdns="dns.google"
+                        exposure{ observed=true ports=[53,443] vulns=[] }
+  ipwho.is       788ms  geo{ country="US" region="California" city="San Jose" ... }
+  dnsbl            8ms  blocklists=[8 个，全部 listed:false]
+```
+
+**不花一分钱，你已经知道**：它属于 Google（ARIN 注册，abuse 邮箱都有）、AS15169、PTR 是 `dns.google`、对外开了 53 和 443、八个主流垃圾邮件黑名单都干净、是机房 IP。
+
+对判断「这个 IP 能不能拿来跑采集」来说，这些够用了。
+
+## 二、然后是地理位置
+
+同一轮里，两个免费地理源对同一个 IP 给出的城市：
+
+```text
+IP                ip-api.com                 ipwho.is                     直线距离
+--------------------------------------------------------------------------------
+8.8.8.8           Ashburn, Virginia          San Jose, California          3846 km
+1.1.1.1           South Brisbane, QLD        Brisbane, QLD                    2 km
+52.95.110.1       New York, NY               Seattle, WA                   3865 km
+185.220.101.1     Brandenburg an der Havel   Berlin                          22 km
+114.114.114.114   Jinan, Shandong            Nanjing, Jiangsu               535 km
+--------------------------------------------------------------------------------
+5 个 IP 全部不一致。最小 2 km，最大 3865 km，中位数 535 km
+```
+
+**五个 IP，五次不一致。** 两个横跨美国大陆，一个跨了半个中国。
+
+距离是我按两边返回的经纬度算的 haversine，不是估的：
+
+```python title="05-地理分歧距离.py"
+def haversine(la1, lo1, la2, lo2):
+    la1, lo1, la2, lo2 = map(radians, (la1, lo1, la2, lo2))
+    h = sin((la2-la1)/2)**2 + cos(la1)*cos(la2)*sin((lo2-lo1)/2)**2
+    return 2 * 6371 * asin(sqrt(h))
+```
+
+<Note type="warn">
+这里有个诚实的前提：`8.8.8.8`、`1.1.1.1` 这类是**任播地址**，本来就没有唯一的物理位置——你在不同地方 ping 它，到达的是不同机房。所以这两条严格说不算「谁错了」。
+
+但 `52.95.110.1`（AWS）和 `114.114.114.114` 不是任播的典型案例，**3865 km 和 535 km 的分歧就是实打实的数据质量差异**。
+</Note>
+
+## 三、分歧不止在地理
+
+### ASN 都能对不上
+
+`114.114.114.114`：
+
+| 源 | ASN | 名称 | 国家 |
+|---|---|---|---|
+| Team Cymru | **21859** | ZEN-ECN - Zenlayer Inc | **US** |
+| ip-api.com | **137702** | CHINATELECOM-JIANGSU-NANJING-IDC | CN |
+| ipwho.is | **137702** | NanJing XinFeng Information Technologies | CN |
+| RDAP | — | Yan Jian（abuse 走 `ipas@cnnic.cn`） | CN |
+
+**两个不同的 ASN，两个不同的国家。** Cymru 看的是当前 BGP 路由表里这个前缀由谁宣告，ip-api 用的是自己的库。这不是谁在撒谎——**它们回答的根本不是同一个问题**：一个是「现在谁在路由它」，一个是「这块地址归谁用」。
+
+### 组织名可以完全不搭界
+
+`185.220.101.1`（一个 Tor 出口）：
+
+| 源 | 说这是谁的 |
+|---|---|
+| RDAP | ARTIKEL10-MNT（RIPE 注册，abuse 走 `abuse@artikel10.org`） |
+| Team Cymru | Stiftung Erneuerbare Freiheit, DE |
+| ip-api.com | Artikel10 e.V |
+| **ipwho.is** | **CIA TRIAD SECURITY LLC**，domain `relayon.org` |
+
+前三个说的是同一件事（德国的 Artikel10 协会，Torservers 网络）。第四个给了一个完全对不上的公司名。
+
+**如果你只接了 ipwho.is 一家，你会把这个 IP 归错主。**
+
+## 四、所以工程上怎么办
+
+分歧不是消灭得掉的。能做的是三件事。
+
+### 一、按字段定优先级，而不是按源
+
+不同的源擅长不同的字段。RDAP 和 Cymru 是注册与路由的一手数据，商业源擅长代理判定，`ipwho.is` 只配当地理兜底。所以合并规则是**只填空、不覆盖**，顺序即优先级：
+
+```typescript title="providers/index.ts"
+/**
+ * 数组顺序即字段优先级：合并时只填补空缺，先到的值不会被后面的覆盖。
+ * 注意这里的"先到"指数组顺序，与实际网络返回的先后无关 ——
+ * 否则同一个 IP 在不同时刻会因为网络抖动得到不同结果。
+ */
+const PROVIDERS: Provider[] = [
+  rdapProvider,
+  cymruProvider,
+  ipApiProvider,
+  // ...
+  ipWhoIsProvider,     // 只作 geo 兜底
+  dnsblProvider,
+];
+```
+
+<Note>
+注释里那句「与实际网络返回的先后无关」是这段代码的全部要点。
+
+按返回顺序合并写起来更自然（谁先回来用谁），但那意味着**同一个 IP 在不同时刻会因为网络抖动得到不同的结论**。一个 IP 情报工具最不能有的性质就是这个。
+</Note>
+
+### 二、记下每个判定背后站着几个源
+
+布尔判定走 OR 合并——任一源说是就是。但**单源确认和多源确认的证据强度差得远**，所以要单独记：
+
+```typescript
+/**
+ * flags 走 OR 合并：任一源判定为 true 即为 true，undefined 一律忽略。
+ *
+ * 同时记录每个判定位被几个源确认 —— 代理/VPN 这类高权重判据必须知道
+ * 背后站着几家，单源和多源的证据强度差别很大。
+ */
+```
+
+线上报告里这个字段长这样：
+
+```json
+"flagAgreement": { "isHosting": 1 },
+"countryAgreement": { "agreed": 3, "total": 3 }
+```
+
+`8.8.8.8` 的「机房 IP」判定**只有一个源说过**。国家判定则是三家一致。这两条信息在报告里必须能分得开，否则读报告的人没法判断该信几分。
+
+### 三、缺数据就说缺，别装满
+
+免费源撑不起代理识别——那是商业源的强项。没配 key 时，正确做法不是猜，是**如实降低置信度**：
+
+```json
+"sources": [
+  { "name": "rdap",           "kind": "free",       "ok": true,  "ms": 232 },
+  { "name": "ipqualityscore", "kind": "commercial", "ok": false, "ms": 0,
+    "skipped": "未配置 IPQS_API_KEY" },
+  { "name": "abuseipdb",      "kind": "commercial", "ok": false, "ms": 0,
+    "skipped": "未配置 ABUSEIPDB_API_KEY" }
+],
+"risk": { "purity": 78, "confidence": "medium" }
+```
+
+`confidence: "medium"` 就是从这里来的——两个商业源缺席，报告如实标出来，而不是用一个漂亮的 `high` 蒙混过去。
+
+## 五、几个实测中的细节
+
+### 本地索引有冷启动
+
+`cloud-ranges` 和 `tor-exits` 是把公开清单拉下来在本地建索引。第一个请求撞上索引还没建好：
+
+```text
+  cloud-ranges  1203ms  报错：云厂商 IP 段仍在加载，本次未参与判定
+[cloud-ranges] indexed 26349 prefixes     ← 这行在报错之后才打出来
+```
+
+预热之后就是 **0ms**——26349 条前缀的本地查表，比任何网络请求都快。
+
+设计上它选择了「如实说没参与」而不是阻塞等待。这是对的：一个源没跟上不该拖垮整次查询。但**你得知道有这回事**，否则冷启动那次的报告会莫名其妙少一条判据。
+
+### Team Cymru 快得不像话
+
+预热后 **1ms**。因为它走的是 DNS 查询，答案命中了本地 DNS 缓存。冷启动时是 1451ms。
+
+对一个要查很多 IP 的场景，这个差别很关键：**Cymru 是唯一一个可以高频调用而基本不产生成本和延迟的 ASN 数据源**。
+
+### DNSBL 一次查八个
+
+```json
+"blocklists": [
+  {"zone": "zen.spamhaus.org",       "label": "Spamhaus ZEN",   "listed": false},
+  {"zone": "bl.spamcop.net",         "label": "SpamCop",        "listed": false},
+  {"zone": "psbl.surriel.com",       "label": "PSBL",           "listed": false},
+  {"zone": "bl.blocklist.de",        "label": "blocklist.de",   "listed": false},
+  {"zone": "dnsbl-1.uceprotect.net", "label": "UCEPROTECT L1",  "listed": false},
+  {"zone": "all.s5h.net",            "label": "s5h.net",        "listed": false},
+  {"zone": "dnsbl.dronebl.org",      "label": "DroneBL",        "listed": false},
+  {"zone": "spam.spamrats.com",      "label": "SpamRats",       "listed": false}
+]
+```
+
+八个全是 DNS 查询，并发跑完 8ms（缓存命中时）到 2800ms（冷）。**这是免费源里性价比最高的一块**——垃圾邮件黑名单是公开基础设施，不要钱也不要 key。
+
+### 「没有字段」和「查不到」要分开
+
+我第一版的摘要函数只认几个固定的 key，结果 `rdns` 一直显示「无字段」——而 `dig -x 8.8.8.8` 明明返回 `dns.google`。
+
+那是我的 bug，不是数据源的。但它暴露了一个真实的设计问题：**「这个源没返回值」和「这个源明确说没有」是两回事**。所以 provider 里是这么写的：
+
+```typescript
+// 无 PTR 记录是有意义的结论（评分时会计入），不是失败。
+return { rdns: res.status === "ok" ? res.records : null };
+```
+
+`null` 表示「查过了，确实没有」，`undefined` 表示「没查成」。评分时前者要计分，后者只能降置信度。
+
+## 六、小结
+
+**免费源能定的**：注册归属、abuse 联系方式、ASN 与路由前缀、PTR、云厂商归属、Tor 出口、开放端口与已知 CVE、垃圾邮件黑名单。对「这个 IP 是不是机房 / 是不是公开代理出口 / 有没有被拉黑」，这些足够了。
+
+**免费源定不了的**：精确地理位置（五个 IP 五次分歧，最远 3865 km）、住宅代理与商业 VPN 的识别（这确实要商业源）。
+
+**最该记住的一条**：不要只接一家。任何单一数据源都会在某个 IP 上给你一个自信而错误的答案——`ipwho.is` 把德国 Artikel10 协会的 Tor 出口说成 "CIA TRIAD SECURITY LLC"，它可没标注自己不确定。
+
+分歧本身就是信息。把「谁说的」和「几家说的」记下来，比追求一个干净的单一答案有用得多。
+
+---
+
+## 附：复现
+
+探针脚本 `probe-free-sources.mts`，只跑 `kind === "free"` 的源，每个单独计时、单独捕获异常：
+
+```typescript
+for (const p of ALL) {
+  if (p.kind !== "free") continue;
+  const skip = p.skipReason?.({ ip });
+  if (skip) { console.log(`  ${p.name} 跳过：${skip}`); continue; }
+  const t0 = Date.now();
+  try {
+    const slice = await p.run({ ip });
+    console.log(`  ${p.name} ${Date.now() - t0}ms  ${summarize(slice)}`);
+  } catch (e) {
+    console.log(`  ${p.name} ${Date.now() - t0}ms  报错：${(e as Error).message}`);
+  }
+}
+```
+
+单源失败只影响它自己那一行——这是数据采集层的基本要求：**任何一个外部源都可能在任何时刻挂掉，而它不该让整次查询失败。**
+
+---
+
+## 参考
+
+- [RDAP 协议 RFC 7482](https://www.rfc-editor.org/rfc/rfc7482)
+- [Team Cymru IP to ASN Mapping](https://team-cymru.com/community-services/ip-asn-mapping/)
+- [Shodan InternetDB](https://internetdb.shodan.io/)
+- [Spamhaus ZEN](https://www.spamhaus.org/blocklists/zen/)
+- [Tor Project：出口节点列表](https://metrics.torproject.org/collector.html)
+- Wikipedia：[Anycast](https://zh.wikipedia.org/wiki/Anycast)（第二节那两个 DNS 地址为什么本来就没有唯一位置）
+- Wikipedia：[半正矢公式](https://zh.wikipedia.org/wiki/半正矢公式)（算直线距离用的）
