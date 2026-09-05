@@ -27,6 +27,7 @@ import {
   git,
   stagedFiles,
   currentBranch,
+  referencedAssets,
 } from './lib.ts'
 
 const server = new McpServer({ name: 'sourcecode-school', version: '1.0.0' })
@@ -232,6 +233,11 @@ server.registerTool(
         `⚠ 正文命中经营性措辞 ${hits.join('、')}——站点走个人备案，这类表述可能导致驳回，建议改写`,
       )
     }
+    // 草稿阶段只提示：图还没画出来是常态，到 publish_post 才会真的拦
+    const miss = referencedAssets(args.body).missing
+    if (miss.length) {
+      notes.push(`⚠ 引用了 public/ 下不存在的文件，发布前必须补上：${miss.join('、')}`)
+    }
     return text(notes.join('\n'))
   },
 )
@@ -305,6 +311,10 @@ server.registerTool(
       notes.push(
         `⚠ 改动命中经营性措辞 ${hits.join('、')}——站点走个人备案，建议改写`,
       )
+    }
+    const miss = referencedAssets(await fs.readFile(file, 'utf8')).missing
+    if (miss.length) {
+      notes.push(`⚠ 引用了 public/ 下不存在的文件，发布前必须补上：${miss.join('、')}`)
     }
     return text(notes.join('\n'))
   },
@@ -400,6 +410,19 @@ server.registerTool(
       }
     }
 
+    /*
+     * 正文引用的图片、附件必须和文章一起提交。
+     * 只 git add 那个 .mdx 的话，文章推上去了、图还留在本地——线上全是 404，
+     * 而且构建不会报错，得等人打开页面才发现。
+     */
+    const assets = referencedAssets(raw)
+    if (assets.missing.length) {
+      return text(
+        `❌ 正文引用了 public/ 下不存在的文件，已中止发布（推上去就是 404）：\n- ` +
+          assets.missing.join('\n- '),
+      )
+    }
+
     const published = raw.replace(/^draft:\s*true\s*$/m, 'draft: false')
     if (published !== raw) await fs.writeFile(file, published, 'utf8')
 
@@ -417,8 +440,28 @@ server.registerTool(
 
     const rel = path.relative(REPO, file)
     const branch = await currentBranch()
-    await git('add', '--', rel)
-    await git('commit', '-m', message ?? `发布：${post.title}`, '--', rel)
+    // 文章和它引用的资源同属一次提交：分开提交会出现「文章已上线、图还没推」的中间态
+    const paths = [rel, ...assets.present]
+    await git('add', '--', ...paths)
+
+    /*
+     * 没有任何改动时 git commit 返回非零，execFile 会抛一个只有
+     * "Command failed: git commit ..." 的错误，看不出发生了什么。
+     * 重复发布同一篇（内容一字未改）就会走到这里，说清楚它。
+     */
+    if (!(await git('diff', '--cached', '--name-only', '--', ...paths))) {
+      const pushed = await git('log', '--oneline', 'origin/HEAD..HEAD').catch(() => '')
+      return text(
+        [
+          `ℹ ${slug} 的内容与已提交版本完全一致，没有需要提交的改动。`,
+          pushed
+            ? `本地还有未推送的提交，已跳过提交直接推送。`
+            : `文章此前已经发布：https://${(await site()).site.domain}/posts/${slug}`,
+        ].join('\n'),
+      )
+    }
+
+    await git('commit', '-m', message ?? `发布：${post.title}`, '--', ...paths)
     await git('push')
     const sha = await git('rev-parse', '--short', 'HEAD')
     const { site: cfg } = await site()
@@ -427,6 +470,9 @@ server.registerTool(
       [
         `✅ 已发布　${sha}　分支 ${branch}`,
         `https://${cfg.domain}/posts/${slug}`,
+        assets.present.length
+          ? `随文提交 ${assets.present.length} 个资源：${assets.present.join('、')}`
+          : '正文没有引用本地资源',
         'Vercel 正在构建，通常几十秒后生效。',
         '',
         '下一步：提交搜索引擎收录，隔一两天再发公众号/知乎并注明原文链接。',

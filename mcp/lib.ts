@@ -8,6 +8,7 @@
 import { execFile } from 'node:child_process'
 import { promisify } from 'node:util'
 import fs from 'node:fs/promises'
+import fsSync from 'node:fs'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 
@@ -96,6 +97,60 @@ export async function validateAll(): Promise<
   } catch (error) {
     return { ok: false, error: error instanceof Error ? error.message : String(error) }
   }
+}
+
+/* ------------------------------------------------------------------ *
+ * 正文引用的本地资源
+ * ------------------------------------------------------------------ */
+
+export const PUBLIC_DIR = path.join(REPO, 'public')
+
+/*
+ * 正文里引用的站内资源，形如 /figures/foo.png，对应 public/figures/foo.png。
+ *
+ * 只认三种写法，且都只指向资源，不会误伤站内页面链接：
+ *   ![说明](/figures/foo.png)     markdown 图片
+ *   src="/figures/foo.png"        JSX / HTML
+ *   cover: /covers/foo.png        frontmatter 封面
+ * 普通链接 [看这篇](/posts/foo) 不在其中——那是页面，不是文件。
+ */
+const ASSET_PATTERNS: RegExp[] = [
+  /!\[[^\]]*\]\(\s*([^)\s]+)/g,
+  /\bsrc\s*=\s*["']([^"']+)["']/g,
+  /^cover:\s*['"]?([^'"\s]+)/gm,
+]
+
+export type AssetScan = {
+  /** 存在于 public/ 下、应当随文章一起提交的文件（仓库相对路径） */
+  present: string[]
+  /** 正文引用了、但 public/ 下找不到的——发上去就是 404 */
+  missing: string[]
+}
+
+export function referencedAssets(raw: string): AssetScan {
+  const refs = new Set<string>()
+  for (const re of ASSET_PATTERNS) {
+    for (const m of raw.matchAll(re)) {
+      const url = m[1]
+      // 站内绝对路径才是本地文件。外链、协议相对、data: 一律跳过。
+      if (!url.startsWith('/') || url.startsWith('//')) continue
+      refs.add(url.split(/[?#]/)[0])
+    }
+  }
+
+  const present: string[] = []
+  const missing: string[] = []
+  for (const url of refs) {
+    const abs = path.resolve(PUBLIC_DIR, '.' + url)
+    // 防目录穿越：解析后必须仍在 public/ 里
+    if (abs !== PUBLIC_DIR && !abs.startsWith(PUBLIC_DIR + path.sep)) {
+      missing.push(url)
+      continue
+    }
+    if (fsSync.existsSync(abs)) present.push(path.relative(REPO, abs))
+    else missing.push(url)
+  }
+  return { present: present.sort(), missing: missing.sort() }
 }
 
 /* ------------------------------------------------------------------ *

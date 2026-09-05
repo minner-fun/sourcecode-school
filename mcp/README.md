@@ -73,3 +73,10 @@ get_writing_guide → list_taxonomy → draft_post
   正则难免误报（讲定价的文章本来就会出现「付费」），确认误报时带 `allowCommercial: true` 放行
 - `publish_post` 校验失败会把已翻成 `draft: false` 的改动还原，
   不留下「不是草稿又没发布」的文件（否则下次构建会把它带上线）
+- **正文引用的本地资源随文章一起提交**，不会出现「文章上线了、图还在本地」。
+  引用了 `public/` 下不存在的文件时 `publish_post` 直接中止——那种 404
+  构建不报错，得等人打开页面才发现。`draft_post` / `update_post` 阶段只提示。
+
+  认三种写法：`![](/figures/x.png)`、`src="/figures/x.png"`、frontmatter 的
+  `cover:`。站内页面链接 `[看这篇](/posts/foo)` 不会被误判成资源，
+  外链和 `data:` 也会跳过。
