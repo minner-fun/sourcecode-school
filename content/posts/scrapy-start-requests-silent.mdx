@@ -1,0 +1,278 @@
+---
+title: Scrapy 2.17 里 start_requests() 已经没人调用了：0 个请求、0 个告警、退出码 0
+date: 2026-09-05
+category: teardown
+tags: [Scrapy, 工程化, 调试]
+excerpt: 升到 2.13 之后，只定义 start_requests() 的爬虫会产出 0 个请求。不报错、不告警、finish_reason 还是 finished。这是我自己在写另一篇文章时踩进去的。
+series: scrapy-silent-failures
+seriesTitle: Scrapy 的静默失效
+seriesOrder: 1
+draft: false
+---
+
+这个坑是我自己踩的，不是听说的。
+
+当时我在写另一篇文章，要测 `DownloadHandlers` 的加载行为，写了个最小爬虫：
+
+```python
+class S(scrapy.Spider):
+    name = "s"
+
+    def start_requests(self):
+        for u in self.urls:
+            yield scrapy.Request(u, callback=self.parse, errback=self.err)
+```
+
+跑完，**退出码 0，日志里一条 ERROR 都没有**。我盯着输出看了一会儿——四个实验场景，一条请求结果都没打出来。
+
+不是实验设计错了。是**这个爬虫一个请求都没发**。
+
+<Note type="warn">
+本文所有结论在 `scrapy 2.17.0` / `Python 3.11.13` 上实测。2.13 到 2.16 之间的具体行为我没验证过，不做断言。
+</Note>
+
+## 一、`start_requests` 在 2.17 的源码里只剩两行，都在 docstring 里
+
+先直接搜整个包：
+
+```bash
+grep -rn "start_requests" .venv/lib/python3.11/site-packages/scrapy
+```
+
+```text
+scrapy/spiders/__init__.py:118:        define also a synchronous ``start_requests()`` method that returns an
+scrapy/spiders/__init__.py:123:            def start_requests(self):
+```
+
+**两处命中，同一个文件，而且都在 `Spider.start()` 的文档字符串里面。**
+
+也就是说：整个 Scrapy 2.17.0 的代码路径中，**没有任何地方会调用你的 `start_requests()`**。它现在只是一段写给「要兼容 2.13 以下版本」的读者看的说明文字。
+
+取代它的是 `Spider.start()`：
+
+```python title="scrapy/spiders/__init__.py"
+async def start(self) -> AsyncIterator[Any]:
+    """Yield the initial :class:`~scrapy.Request` objects to send.
+
+    .. versionadded:: 2.13
+    ...
+    """
+    for url in self.start_urls:
+        yield Request(url, dont_filter=True)
+```
+
+注意基类的默认实现：它读的是 **`start_urls`**，不是 `start_requests()`。所以只配了 `start_urls` 的爬虫照常工作，**只有自己重写过 `start_requests()` 的会中招**。
+
+而「重写 `start_requests()`」恰恰是最常见的写法——只要你需要带 POST body、自定义 header、附 meta、或者 URL 是动态算出来的，你就写过它。
+
+## 二、三种写法并排跑
+
+用本机 HTTP 服务做对照，避免联网带来的干扰。三种写法请求同样的三个 URL：
+
+```python title="02-start-requests静默失效.py"
+class OldStyle(scrapy.Spider):          # 2.13 之前的标准写法
+    name = "old"
+    def start_requests(self):
+        for n in (1, 2, 3):
+            yield scrapy.Request(BASE.format(port=self.port, n=n), dont_filter=True)
+
+class NewStyle(scrapy.Spider):          # 2.13+ 的写法
+    name = "new"
+    async def start(self):
+        for n in (1, 2, 3):
+            yield scrapy.Request(BASE.format(port=self.port, n=n), dont_filter=True)
+
+class StartUrls(scrapy.Spider):         # 只给 start_urls，走基类默认的 start()
+    name = "urls"
+```
+
+每个场景必须跑在**独立子进程**里：
+
+```python
+def driver() -> None:
+    for name, label in LABELS.items():
+        r = subprocess.run([sys.executable, str(me), name, str(port)],
+                           capture_output=True, text=True, timeout=120)
+```
+
+<Note type="warn">
+这一步不是可选的。Twisted 的 reactor 一个进程只能跑一次，`CrawlerProcess` 跑第二次直接 `ReactorNotRestartable`。我第一版把几个场景写在一个进程里，结果第二个之后全是启动异常，而第一个场景「跑起来了但没有输出」，看着像是实验本身有问题——完全是假象。
+</Note>
+
+取统计数据也有个坑：
+
+```python
+# 先拿住 crawler 引用：CrawlerProcess.crawlers 在爬虫结束后会被清空，
+# 跑完再去 list(proc.crawlers)[0] 只会拿到 IndexError
+crawler = proc.create_crawler(cls)
+proc.crawl(crawler, **kw)
+proc.start()
+st = crawler.stats.get_stats()
+```
+
+## 三、结果
+
+```text
+scrapy 2.17.0  python 3.11.13
+本机 HTTP 服务: 127.0.0.1:43659（三个场景请求同样的 3 个 URL）
+
+──── ① 只定义 start_requests()  —— 2.13 之前的标准写法
+  退出码 0
+  [统计] 请求数=0  响应数=0  结束原因=finished
+  与 start 有关的告警: 一条都没有
+
+──── ② 定义 async def start()   —— 2.13+ 的写法
+  退出码 0
+  [响应] 200 http://127.0.0.1:43659/p1
+  [响应] 200 http://127.0.0.1:43659/p3
+  [响应] 200 http://127.0.0.1:43659/p2
+  [统计] 请求数=3  响应数=3  结束原因=finished
+  与 start 有关的告警: 一条都没有
+
+──── ③ 只给 start_urls          —— 走基类默认的 start()
+  退出码 0
+  [响应] 200 http://127.0.0.1:43659/p1
+  [响应] 200 http://127.0.0.1:43659/p3
+  [响应] 200 http://127.0.0.1:43659/p2
+  [统计] 请求数=3  响应数=3  结束原因=finished
+  与 start 有关的告警: 一条都没有
+```
+
+并排看：
+
+| 写法 | 请求数 | 响应数 | `finish_reason` | 退出码 | 告警 |
+|---|---|---|---|---|---|
+| 只 `start_requests()` | **0** | **0** | `finished` | **0** | 无 |
+| `async def start()` | 3 | 3 | `finished` | 0 | 无 |
+| 只 `start_urls` | 3 | 3 | `finished` | 0 | 无 |
+
+<Note>
+`finish_reason` 是 **`finished`**，不是 `cancelled` 也不是任何异常状态。从 Scrapy 的角度看，这次爬取**圆满完成**了——它确实把 `start()` 产出的所有请求（零个）都处理完了。
+</Note>
+
+告警那一栏我是特意查的，子进程里开了 `warnings.simplefilter("always")`：
+
+```python
+def child(name: str, port: int) -> None:
+    warnings.simplefilter("always")  # 有没有 DeprecationWarning，这里会显出来
+```
+
+**一条都没有。** 没有 `ScrapyDeprecationWarning`，没有 `DeprecationWarning`，什么都没有。
+
+## 四、为什么这个失效特别难发现
+
+把它和别的错误放一起比就清楚了：
+
+| 故障类型 | 你会看到什么 |
+|---|---|
+| URL 写错 | `NotSupported` / DNS 错误，日志里有 ERROR |
+| 被 403 挡了 | `response_status_count/403`，日志里有 |
+| 选择器没匹配上 | item 数为 0，但**请求数不为 0** |
+| **`start_requests` 失效** | **请求数为 0，一切正常** |
+
+前三种都有一个非零的数字可以抓。最后这种，**所有计数器都是 0，而 0 本身不触发任何检查**。
+
+如果你有监控，它多半是这么写的：
+
+```python
+if stats.get("log_count/ERROR", 0) > 0:
+    alert()
+```
+
+这个条件不成立。爬虫「成功」了。
+
+我自己是靠什么发现的？**四个实验场景，一条请求结果都没打出来。** 不是某一个异常，是全都没有——而「全部失败」几乎总是自己的问题，模型和框架不会对四个不同输入给出完全一致的空结果。
+
+## 五、怎么查、怎么改
+
+### 查
+
+一行命令，扫一遍你所有的爬虫：
+
+```bash
+grep -rn "def start_requests" --include="*.py" .
+```
+
+有命中就都要改。特别注意继承链——基类里定义了 `start_requests()`，所有子类一起失效。
+
+### 改
+
+```python
+# 之前
+def start_requests(self):
+    yield scrapy.Request(url, method="POST", body=payload)
+
+# 之后
+async def start(self):
+    yield scrapy.Request(url, method="POST", body=payload)
+```
+
+改动就是加 `async`、改个名字。函数体是同步逻辑也没关系，异步生成器里可以只有 `yield`。
+
+**要同时兼容 2.13 以下的版本**，就两个都写——这正是那段 docstring 的建议：
+
+```python
+async def start(self):
+    for r in self._initial_requests():
+        yield r
+
+def start_requests(self):        # 2.13 以下才会被调用
+    yield from self._initial_requests()
+
+def _initial_requests(self):
+    yield scrapy.Request(url, method="POST", body=payload)
+```
+
+### 加一道兜底
+
+不管改没改，都值得在收尾时确认「至少发出去了一个请求」：
+
+```python
+from scrapy import signals
+
+class AssertNonEmpty:
+    """请求数为 0 的爬取不是成功，是没跑起来。"""
+
+    @classmethod
+    def from_crawler(cls, crawler):
+        ext = cls()
+        crawler.signals.connect(ext.closed, signal=signals.spider_closed)
+        return ext          # ← 必须 return，忘了它整个扩展静默失效
+
+    def closed(self, spider):
+        n = spider.crawler.stats.get_value("downloader/request_count", 0)
+        if n == 0:
+            spider.logger.error("请求数为 0 —— start() 可能没有产出任何请求")
+```
+
+`from_crawler` 那句 `return` 不是可有可无的：没有返回值，扩展实例没人持有，整个扩展会被悄悄丢掉——**又一个同类的坑**。
+
+## 六、这次的教训
+
+不在于「2.13 改了 API」。API 改名是常事，文档也写了。
+
+问题在于**它没有留下任何运行时痕迹**。一个方法被彻底废弃，通常有三种处理：
+
+1. 报错 —— 你立刻知道
+2. 打 `DeprecationWarning` —— 你迟早知道
+3. **什么都不做** —— 你可能永远不知道
+
+第三种最省事，也最贵。2.17 选了第三种。
+
+所以：
+
+<Note>
+**升级框架大版本之后，先确认「东西还在动」，再看「结果对不对」。**
+
+具体到爬虫，就是先看 `downloader/request_count`。它是 0 的时候，后面所有指标都没有意义——包括那个让人放心的 `finish_reason: finished`。
+</Note>
+
+---
+
+## 参考
+
+- Scrapy 文档：[Spider.start()](https://docs.scrapy.org/en/latest/topics/spiders.html#scrapy.Spider.start)
+- Scrapy 文档：[Start requests](https://docs.scrapy.org/en/latest/topics/spiders.html#start-requests)
+- Scrapy 文档：[Stats Collection](https://docs.scrapy.org/en/latest/topics/stats.html)
+- Python 文档：[异步生成器](https://docs.python.org/zh-cn/3/reference/expressions.html#asynchronous-generator-functions)
+- Twisted 文档：[reactor 不可重启](https://docs.twisted.org/en/stable/core/howto/reactor-basics.html)
