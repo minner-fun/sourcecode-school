@@ -1,0 +1,230 @@
+---
+title: settings.set() 可能什么都没做：优先级低于现值时静默丢弃，返回值还是 None
+date: 2026-09-05
+category: teardown
+tags: [Scrapy, 工程化, 调试]
+excerpt: Scrapy 的 Settings 按优先级写入，低于当前优先级的写入会被直接丢掉——不抛异常、不打告警，set() 的返回值和成功时一模一样。spider 的 custom_settings 会挡住后来所有默认优先级的修改。
+series: scrapy-silent-failures
+seriesTitle: Scrapy 的静默失效
+seriesOrder: 3
+draft: false
+---
+
+你在一个扩展里写：
+
+```python
+crawler.settings.set("CONCURRENT_REQUESTS", 4)
+```
+
+跑起来，并发还是 8。没有异常，没有告警，日志里什么都没有。
+
+原因在这十行里：
+
+```python title="scrapy/settings/__init__.py"
+class SettingsAttribute:
+    def set(self, value: Any, priority: int) -> None:
+        """Sets value if priority is higher or equal than current priority."""
+        if priority >= self.priority:
+            if isinstance(self.value, BaseSettings):
+                value = BaseSettings(value, priority=priority)
+            self.value = value
+            self.priority = priority
+```
+
+**`if` 不成立时，函数直接结束。** 没有 `else`，没有异常，没有返回值告诉你这次写入被丢了。
+
+<Note type="warn">
+本文在 `scrapy 2.17.0` / `Python 3.11.13` 上实测。全程不联网、不起 reactor，只操作 `Settings` 对象和 `Crawler` 的构造阶段。
+</Note>
+
+## 一、六级优先级
+
+```python
+SETTINGS_PRIORITIES: dict[str, int] = {
+    "default":  0,
+    "command": 10,
+    "addon":   15,
+    "project": 20,
+    "spider":  30,
+    "cmdline": 40,
+}
+```
+
+关键的一条：**`Settings.set()` 的默认优先级是 `project`（20）**，处在中间。比它高的有两级——`spider`（30）和 `cmdline`（40）——**这两级都很容易被用到**。
+
+`spider` 就是 `custom_settings`：
+
+```python title="scrapy/spiders/__init__.py"
+@classmethod
+def update_settings(cls, settings: BaseSettings) -> None:
+    settings.setdict(cls.custom_settings or {}, priority="spider")
+```
+
+而它在 `Crawler.__init__` 里就执行了：
+
+```python title="scrapy/crawler.py"
+self.settings: Settings = settings.copy()
+self.spidercls.update_settings(self.settings)
+```
+
+**也就是说，crawler 一造出来，`custom_settings` 里的每一项就已经占据了 30 级。** 此后任何默认优先级的 `set()` 都写不进去。
+
+## 二、实测
+
+```text
+scrapy 2.17.0  python 3.11.13
+优先级表: {'default': 0, 'command': 10, 'addon': 15, 'project': 20, 'spider': 30, 'cmdline': 40}
+
+──── ① 直接在 Settings 上演示：高优先级写入后，低优先级写不进去
+  初始（default=0）                        值=16   优先级=0
+  set(99, priority="cmdline")  40          值=99   优先级=40
+  set(4)  ← 默认 project=20，低于 40        值=99   优先级=40
+  set() 的返回值: None   ← 成功和失败长得一模一样
+
+──── ② 有没有告警
+  捕获到的告警数: 0
+
+──── ③ 真实场景：spider 的 custom_settings 挡住后来的 set()
+  Crawler 构造后（custom_settings 已生效）    值=8    优先级=30
+  crawler.settings.set(2)  ← 默认 project=20  值=8    优先级=30
+  set(2, priority="spider")  30 >= 30       值=2    优先级=30
+
+──── ④ addon 优先级 15，比 project 20 还低
+  settings.py 写死  project=20              值=32   优先级=20
+  addon 想改成 4       addon=15              值=32   优先级=20
+
+──── ⑤ 冻结之后再写：这个反而是响亮的
+  TypeError: Trying to modify an immutable Settings object   ← 冻结是会喊的，低优先级不会
+
+──── ⑥ 唯一可靠的自检：写完回读优先级
+  写入未生效：期望 4，实际 99，当前优先级 40 高于本次写入的 20
+```
+
+场景 ② 是特意查的，开了 `warnings.simplefilter("always")`：**0 条告警**。
+
+## 三、三个值得单独说的点
+
+### `set()` 成功和失败长得完全一样
+
+```python
+ret = s.set(KEY, 4)     # 被丢弃
+print(repr(ret))        # None
+```
+
+成功时也是 `None`。**API 没有给你任何区分手段**——不像 `dict.pop()` 有返回值，不像 `os.replace()` 会抛异常。你只能事后回读。
+
+### 冻结会喊，优先级不会
+
+场景 ⑤ 是个有意思的对照。同一个 `Settings` 类，两种「写不进去」：
+
+| 情况 | 行为 |
+|---|---|
+| 对象已 `freeze()` | **抛 `TypeError`** |
+| 优先级低于现值 | **静默丢弃** |
+
+```python
+def _assert_mutability(self) -> None:
+    if self.frozen:
+        raise TypeError("Trying to modify an immutable Settings object")
+```
+
+冻结是「你在错误的阶段调用了它」——设计上判定为编程错误，所以抛异常。低优先级则被当成「正常的优先级仲裁」，不算错误。
+
+这个区分在框架内部说得通：优先级机制存在的意义就是让命令行覆盖项目配置、项目配置覆盖默认值，**低优先级写不进去正是它该有的行为**。
+
+问题在于调用方通常不知道自己处在哪一级。你在扩展里写 `settings.set(...)`，脑子里想的是「把这个值改掉」，而不是「以 20 级发起一次优先级竞价」。
+
+### addon 比 project 还低
+
+```text
+settings.py 写死  project=20     值=32
+addon 想改成 4    addon=15       值=32   ← 没改动
+```
+
+`addon`（15）低于 `project`（20），所以**只要 `settings.py` 里写了某一项，addon 就改不动它**。
+
+这是刻意的——addon 提供的是默认值，用户在项目里的显式配置应当优先。但如果你在写 addon 并且期待自己的设置生效，这一条会让你困惑很久。
+
+## 四、怎么办
+
+### 一、写完回读，这是唯一可靠的自检
+
+```python
+from scrapy.settings import SETTINGS_PRIORITIES
+
+def set_or_raise(settings, name, value, priority="project"):
+    """确保写入真的生效。settings.set() 本身不会告诉你。"""
+    settings.set(name, value, priority=priority)
+    if settings.get(name) != value:
+        raise RuntimeError(
+            f"{name} 写入未生效：期望 {value!r}，实际 {settings.get(name)!r}。"
+            f"当前优先级 {settings.getpriority(name)} "
+            f"高于本次写入的 {SETTINGS_PRIORITIES.get(priority, priority)}"
+        )
+```
+
+`getpriority()` 是关键——它直接告诉你现在这一项被谁占着。**排查这类问题时先打它，比看值有用。**
+
+### 二、明确写出你要的优先级
+
+不要依赖默认的 `project`。你想覆盖 `custom_settings`，就写清楚：
+
+```python
+settings.set("CONCURRENT_REQUESTS", 4, priority="spider")   # 30 >= 30，能写进去
+```
+
+<Note type="warn">
+但要想清楚这是不是你真正想要的。`custom_settings` 是爬虫作者的显式选择，你的扩展凭什么覆盖它？
+
+大多数时候正确的做法不是提高优先级硬压过去，而是**用更低的优先级提供默认值**，让爬虫作者的配置自然胜出：
+
+```python
+settings.set("CONCURRENT_REQUESTS", 4, priority="default")  # 只在没人配过时生效
+```
+
+这两种写法的语义完全相反：一个是「我说了算」，一个是「没人管的话按我来」。选错了，要么覆盖掉用户的意图，要么自己的配置永远不生效。
+</Note>
+
+### 三、启动时把关键项打出来
+
+Scrapy 自己就这么做：
+
+```python title="scrapy/crawler.py"
+self.settings.freeze()
+d = dict(overridden_settings(self.settings))
+```
+
+`overridden_settings()` 列出所有非默认值的设置，会在启动日志里出现。**跑之前扫一眼这份清单，比事后查为什么并发不对快得多。**
+
+## 五、和前两篇的共同点
+
+这个系列到这里三篇了：
+
+1. [`start_requests()` 已经没人调用](/posts/scrapy-start-requests-silent) —— 请求根本没发出去
+2. [下载处理器建不起来](/posts/scrapy-download-handler-lazy) —— 请求发了，但下载器从来没建成
+3. `settings.set()` 静默丢弃 —— 配置写了，但没写进去
+
+三个的表现完全一致：**没有异常，没有告警，退出码 0。**
+
+它们背后是同一种设计取舍：框架在一个「不算错误、但也不是你想要的结果」的岔路口，选择了安静地继续。这个选择本身多半是对的——一个数据源没配好不该让整个爬取崩掉，一次优先级仲裁失败不该抛异常。
+
+但它把「确认这件事真的发生了」的责任完全交给了调用方。而调用方通常不知道有这个责任。
+
+<Note>
+**共同的应对方式也只有一条：写完之后，回读一次。**
+
+- 发了请求 → 回读 `downloader/request_count`
+- 建了处理器 → 回读它有没有真的进 `_handlers`
+- 改了配置 → 回读 `settings.get()` 和 `getpriority()`
+
+这一步很便宜。省掉它的代价，是你可能跑了三个小时才发现什么都没发生。
+</Note>
+
+---
+
+## 参考
+
+- Scrapy 文档：[Settings 与优先级](https://docs.scrapy.org/en/latest/topics/settings.html#populating-the-settings)
+- Scrapy 文档：[Spider.custom_settings](https://docs.scrapy.org/en/latest/topics/spiders.html#scrapy.Spider.custom_settings)
+- Scrapy 文档：[Add-ons](https://docs.scrapy.org/en/latest/topics/addons.html)（addon 优先级 15 的来历）
+- Python 文档：[warnings.simplefilter](https://docs.python.org/zh-cn/3/library/warnings.html#warnings.simplefilter)（第二节确认「零告警」用的）
