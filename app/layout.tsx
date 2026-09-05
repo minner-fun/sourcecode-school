@@ -30,8 +30,8 @@ const plexSans = IBM_Plex_Sans({
 export const metadata: Metadata = {
   metadataBase: new URL(siteUrl),
   title: {
-    default: `${site.title} · ${site.tagline}`,
-    template: `%s · ${site.title}`,
+    default: `${site.name} · ${site.tagline}`,
+    template: `%s · ${site.name}`,
   },
   description: site.description,
   authors: [{ name: site.author.name }],
@@ -42,9 +42,9 @@ export const metadata: Metadata = {
   openGraph: {
     type: 'website',
     locale: 'zh_CN',
-    siteName: site.title,
+    siteName: site.name,
     url: siteUrl,
-    title: `${site.title} · ${site.tagline}`,
+    title: `${site.name} · ${site.tagline}`,
     description: site.description,
   },
   twitter: { card: 'summary_large_image' },
@@ -59,8 +59,8 @@ export default function RootLayout({
   const jsonLd = {
     '@context': 'https://schema.org',
     '@type': 'WebSite',
-    name: site.title,
-    alternateName: site.name,
+    name: site.name,
+    alternateName: site.domain,
     url: siteUrl,
     description: site.description,
     inLanguage: 'zh-CN',

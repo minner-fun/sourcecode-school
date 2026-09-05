@@ -78,7 +78,7 @@ export default async function PostPage({
     keywords: post.tags.join(', '),
     articleSection: categoryMap[post.category].label,
     author: { '@type': 'Person', name: site.author.name },
-    publisher: { '@type': 'Organization', name: site.title },
+    publisher: { '@type': 'Organization', name: site.name },
     mainEntityOfPage: `${siteUrl}/posts/${post.slug}`,
     ...(post.cover ? { image: `${siteUrl}${post.cover}` } : {}),
   }

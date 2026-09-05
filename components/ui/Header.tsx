@@ -17,8 +17,24 @@ export function Header() {
         <Link href="/" className="mr-auto flex items-center gap-2.5">
           {/* 赭石方块是全站的标记语言：代码块标题、断点行、这里，同一个信号 */}
           <span className="size-2 flex-none bg-brand" />
-          <span className="font-mono text-[14.5px] font-medium tracking-[-0.01em] text-ink">
-            {site.name}
+          {/*
+            站名按全站的排版规则拆开渲染：中文走系统字体栈，拉丁走 Plex Mono。
+            等宽字体不含 CJK，整串套 font-mono 只会让中文回退成随机字体，
+            和「Spider」的字形对不齐。
+          */}
+          <span className="text-[14.5px] font-semibold tracking-[-0.01em] text-ink">
+            {site.name
+              .split(/([\u4e00-\u9fff]+)/)
+              .filter(Boolean)
+              .map((part, i) =>
+                /[\u4e00-\u9fff]/.test(part) ? (
+                  <span key={i}>{part}</span>
+                ) : (
+                  <span key={i} className="font-mono">
+                    {part}
+                  </span>
+                ),
+              )}
           </span>
         </Link>
 

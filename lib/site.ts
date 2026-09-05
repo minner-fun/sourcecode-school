@@ -33,8 +33,10 @@ function resolveSiteUrl(): string {
 export const siteUrl = resolveSiteUrl()
 
 export const site = {
-  name: 'sourcecode.school',
-  title: '逆向手记',
+  /** 品牌名，与微信公众号保持一致——一个身份贯穿站点和公众号 */
+  name: '网虫Spider',
+  /** 域名，用于页脚和结构化数据的 alternateName */
+  domain: 'sourcecode.school',
   /** 用在首页 hero 和 <title> 模板里 */
   tagline: '采集逆向、源码剖析与工程实践，只写跑通过的过程',
   description:
