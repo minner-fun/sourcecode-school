@@ -53,7 +53,7 @@ export const site = {
    */
   wechatMp: {
     name: '网虫Spider',
-    qr: '',
+    qr: '/mp-qr.png',
   },
   contacts: {
     wechat: 'NarraData',
