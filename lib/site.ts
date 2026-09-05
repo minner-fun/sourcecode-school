@@ -63,6 +63,16 @@ export const site = {
     github: 'https://github.com/minner-fun',
   },
   /**
+   * IndexNow 密钥。发布后由 MCP 主动把新 URL 推给 Bing / Yandex 等同协议引擎，
+   * 不必等它们自己来爬 sitemap —— 新域名的自然抓取频率很低。
+   *
+   * 这个值按协议就是公开的：所有权校验靠 https://<域名>/<key>.txt 能取到同样的字符串。
+   * 所以它进仓库是正确的，不是泄密。换 key 要同时改这里和 public/ 下那个文件，
+   * MCP 发布前会核对两者是否一致，对不上就跳过推送并提示。
+   */
+  indexNowKey: '0ad3ae2e87eda504ea70777367d36c22',
+
+  /**
    * 备案信息，国内节点必填，留空则页脚不显示。
    * icp   工信部 ICP 备案号，形如 沪ICP备xxxxxxxx号
    * police 公安备案号（纯数字），页脚需链接到 beian.mps.gov.cn 对应查询页

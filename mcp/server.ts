@@ -29,6 +29,7 @@ import {
   currentBranch,
   referencedAssets,
 } from './lib.ts'
+import { ping, urlsForPost, waitLive } from './indexnow.ts'
 
 const server = new McpServer({ name: 'sourcecode-school', version: '1.0.0' })
 
@@ -363,6 +364,13 @@ server.registerTool(
         .describe(
           '确认经营性措辞是误报时置 true，跳过该检查。缺省 false，命中即中止发布。',
         ),
+      skipIndexNow: z
+        .boolean()
+        .optional()
+        .describe(
+          '跳过「等页面上线 → 推送 IndexNow」。缺省 false。改错别字之类不值得重推时可以置 true，'
+          + '它会让发布快约一分钟。',
+        ),
     },
     /*
      * destructiveHint 标 true：这个动作会推送到生产、立刻对外可见，
@@ -376,7 +384,7 @@ server.registerTool(
       readOnlyHint: false,
     },
   },
-  async ({ slug, message, allowCommercial }) => {
+  async ({ slug, message, allowCommercial, skipIndexNow }) => {
     const file = postPath(slug)
     if (!(await exists(file))) return text(`❌ 找不到 ${slug}.mdx`)
 
@@ -465,19 +473,48 @@ server.registerTool(
     await git('push')
     const sha = await git('rev-parse', '--short', 'HEAD')
     const { site: cfg } = await site()
+    const url = `https://${cfg.domain}/posts/${slug}`
 
-    return text(
-      [
-        `✅ 已发布　${sha}　分支 ${branch}`,
-        `https://${cfg.domain}/posts/${slug}`,
-        assets.present.length
-          ? `随文提交 ${assets.present.length} 个资源：${assets.present.join('、')}`
-          : '正文没有引用本地资源',
-        'Vercel 正在构建，通常几十秒后生效。',
-        '',
-        '下一步：提交搜索引擎收录，隔一两天再发公众号/知乎并注明原文链接。',
-      ].join('\n'),
+    const lines = [
+      `✅ 已发布　${sha}　分支 ${branch}`,
+      url,
+      assets.present.length
+        ? `随文提交 ${assets.present.length} 个资源：${assets.present.join('、')}`
+        : '正文没有引用本地资源',
+    ]
+
+    if (skipIndexNow) {
+      lines.push('已跳过上线等待与 IndexNow 推送（skipIndexNow）。')
+    } else {
+      /*
+       * 先等页面真的能取到，再推 IndexNow。
+       * 反过来做的话，引擎抓到的是构建期间的 404 —— 比不推更糟，
+       * 它会把这个 URL 记成坏的，之后未必肯再来。
+       */
+      const wait = await waitLive(url)
+      const sec = Math.round(wait.waitedMs / 1000)
+      if (!wait.live) {
+        lines.push(
+          `⚠ 等了 ${sec}s 页面仍未上线（最后一次 HTTP ${wait.lastStatus || '无响应'}），已跳过 IndexNow 推送。`,
+          '构建可能失败了，去 Vercel 看一眼；确认上线后可以重新发布一次以触发推送。',
+        )
+      } else {
+        lines.push(`页面已上线（等了 ${sec}s）。`)
+        const urls = await urlsForPost(slug, post)
+        const r = await ping(urls)
+        lines.push(
+          r.ok
+            ? `已推送 IndexNow（HTTP ${r.status}），${r.urls.length} 个地址：${r.urls.join('、')}`
+            : `⚠ IndexNow 推送失败：${r.reason}`,
+        )
+      }
+    }
+
+    lines.push(
+      '',
+      '下一步：百度需要单独提交（不吃 IndexNow），隔一两天再发公众号/知乎并注明原文链接。',
     )
+    return text(lines.join('\n'))
   },
 )
 
