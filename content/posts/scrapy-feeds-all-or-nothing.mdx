@@ -1,0 +1,247 @@
+---
+title: FEEDS 里写错一个字母，另一个完全正确的输出也消失了：item 抓到 3 条，文件 0 个
+date: 2026-09-05
+category: teardown
+tags: [Scrapy, 工程化, 数据管道]
+excerpt: FEEDS 的校验在遍历循环里 raise NotConfigured，而这会让整个导出扩展被停用——不是跳过那个配错的输出，是全部。配两个输出、其中一个格式名拼错，两个都不会生成。
+series: scrapy-silent-failures
+seriesTitle: Scrapy 的静默失效
+seriesOrder: 4
+draft: false
+---
+
+配两个输出，一个 JSON Lines 给下游，一个 CSV 给人看：
+
+```python
+FEEDS = {
+    "out.jsonl": {"format": "jsonlines"},
+    "out.csv":   {"format": "csvv"},        # ← 手滑多打了一个 v
+}
+```
+
+跑完，**两个文件都没有**。不是 CSV 那个没有，是两个都没有。
+
+爬取本身完全正常：3 个请求、3 条 item、`finish_reason: finished`、退出码 0。
+
+## 一、为什么一个错会连累全部
+
+校验写在 `FeedExporter` 的初始化里，遍历 `FEEDS`：
+
+```python title="scrapy/extensions/feedexport.py" {2,4,6}
+for uri, feed_options in self.feeds.items():
+    if not self._storage_supported(uri, feed_options):
+        raise NotConfigured
+    if not self._settings_are_valid():
+        raise NotConfigured
+    if not self._exporter_supported(feed_options["format"]):
+        raise NotConfigured
+```
+
+三处 `raise NotConfigured`，都在循环体内。
+
+而 `NotConfigured` 在 Scrapy 的扩展加载协议里有特定含义：**「这个组件不该启用」**。扩展管理器捕获它，把这个扩展从启用列表里拿掉，然后继续加载别的组件。
+
+所以链条是：
+
+<CallChain steps={[
+  { fn: 'FEEDS 里第 2 项格式名拼错', note: '_exporter_supported 返回 False' },
+  { fn: 'raise NotConfigured', note: '在遍历循环里抛出，循环终止' },
+  { fn: 'ExtensionManager 捕获', note: '按协议理解为「这个扩展不该启用」' },
+  { fn: 'FeedExporter 整个被停用', note: '第 1 项那个完全正确的输出也一起没了', done: true },
+]} />
+
+**它没有「跳过坏的、保留好的」这个中间状态。** 校验是全有或全无的。
+
+## 二、实测四种情况
+
+每个场景独立子进程（Twisted 的 reactor 一个进程只能跑一次），用本机 HTTP 服务，不联网。
+
+```text
+scrapy 2.17.0  python 3.11.13
+
+──── ① 一个正确的输出（对照组）
+  退出码 0
+  [统计] 请求=3  抓到 item=3  结束原因=finished
+  [feed统计] {'feedexport/success_count/FileFeedStorage': 1}
+  [产物] out.jsonl  165 字节  3 行
+
+──── ② 格式名拼错：jsonlinez
+  退出码 0
+  [统计] 请求=3  抓到 item=3  结束原因=finished
+  [feed统计] （一条都没有）
+  [产物] 目录是空的
+  [日志] ERROR: Unknown feed format: jsonlinez
+
+──── ③ 一对一错 —— 对的那个还写得出来吗
+  退出码 0
+  [统计] 请求=3  抓到 item=3  结束原因=finished
+  [feed统计] （一条都没有）
+  [产物] 目录是空的
+  [日志] ERROR: Unknown feed format: jsonlinez
+
+──── ④ 存储协议不认识：ftpz://
+  退出码 0
+  [统计] 请求=3  抓到 item=3  结束原因=finished
+  [feed统计] （一条都没有）
+  [产物] 目录是空的
+  [日志] ERROR: Unknown feed storage scheme: ftpz
+```
+
+场景 ③ 就是开头那个例子：**`out.jsonl` 的配置一个字都没错，它照样没生成。**
+
+## 三、最难受的一点：连一个可以报警的统计项都没有
+
+看正常情况下的统计：
+
+```json
+{ "feedexport/success_count/FileFeedStorage": 1 }
+```
+
+再看失败时：
+
+```text
+[feed统计] （一条都没有）
+```
+
+**不是 `failed_count: 1`，是这个前缀下一个键都没有。**
+
+因为扩展压根没启用，`feedexport/*` 这些计数器从来没被创建过。存储层确实有失败计数：
+
+```python title="scrapy/extensions/feedexport.py"
+except Exception:
+    logger.error("Error storing %s", logmsg, exc_info=True, ...)
+    self.crawler.stats.inc_value(f"feedexport/failed_count/{slot_type}")
+```
+
+但那是**写文件时出错**才会走到的路径——比如磁盘满了、S3 凭证过期。配置写错的情况根本走不到那里，因为扩展在启动阶段就下线了。
+
+<Note type="warn">
+如果你的告警是这么写的：
+
+```python
+if stats.get("feedexport/failed_count/...", 0) > 0:
+    alert()
+```
+
+**它永远不会触发。** 配置错误的场景下这个键不存在，`.get()` 返回 0。
+
+正确的检查方向是相反的——不是查有没有失败，而是**查有没有成功**。
+</Note>
+
+## 四、两条能用的检查
+
+### 一、断言导出成功过
+
+```python
+from scrapy import signals
+
+class AssertExported:
+    """item 抓到了但一个文件都没写出来，这不是成功。"""
+
+    def __init__(self, crawler):
+        self.crawler = crawler
+
+    @classmethod
+    def from_crawler(cls, crawler):
+        ext = cls(crawler)
+        # 必须用 engine_stopped，不能用 spider_closed —— 见下面那段
+        crawler.signals.connect(ext.closed, signal=signals.engine_stopped)
+        return ext          # ← 忘了 return，这个扩展自己就静默失效了
+
+    def closed(self):
+        st = self.crawler.stats
+        items = st.get_value("item_scraped_count", 0)
+        ok = sum(v for k, v in st.get_stats().items()
+                 if k.startswith("feedexport/success_count/"))
+        if items and not ok:
+            self.crawler.spider.logger.error(
+                "抓到 %d 条 item，但没有任何 feed 导出成功 —— "
+                "多半是 FEEDS 配置有误，导出扩展在启动阶段就被停用了", items
+            )
+
+        # 顺带直接问一句它在不在，比从结果反推更直接
+        names = {type(e).__name__ for e in self.crawler.extensions.middlewares}
+        if "FeedExporter" not in names:
+            self.crawler.spider.logger.error("FeedExporter 未启用 —— 检查 FEEDS 配置")
+```
+
+关键是 `items and not ok` 这个组合。单看哪一个都不够：没抓到 item 时没有导出是正常的，抓到了却没导出才是问题。
+
+<Note type="warn">
+**这段代码的第一版我挂在 `spider_closed` 上，结果配置完全正确的那次运行也报警了。**
+
+```text
+──── B. FEEDS 正确（都该通过）
+  [自检1] item=1  导出成功=0  → 报警        ← 误报
+  [产物] ['out.jsonl']                      ← 文件明明写出来了
+```
+
+原因是 **feed 的落盘发生在 `spider_closed` 之后**，那个时刻 `feedexport/success_count/*` 还是 0。换成 `engine_stopped` 就对了：
+
+```text
+──── A. FEEDS 一对一错（两条自检都该报警）
+  [自检1] item=1  导出成功=0  → 报警
+  [自检2] FeedExporter 在启用列表里吗: 不在 → 报警
+──── B. FEEDS 正确（都该通过）
+  [自检1] item=1  导出成功=1  → 通过
+  [自检2] FeedExporter 在启用列表里吗: 在 → 通过
+```
+
+一个每次成功都误报的检查比没有检查更糟——它会训练你忽略告警。**自检代码本身也要用「已知好」和「已知坏」两组数据各跑一遍。**
+</Note>
+
+### 二、上线前先干跑一次
+
+配置错误在启动阶段就能暴露，不需要真的爬完：
+
+```bash
+scrapy crawl myspider -s CLOSESPIDER_ITEMCOUNT=1 2>&1 | grep -i "feedexport"
+```
+
+看到 `ERROR: Unknown feed format` 就说明配错了。看到 `Stored ... feed (1 items) in: ...` 才算通过。
+
+**改过 `FEEDS` 就跑一次这个**，比爬三小时之后发现目录是空的便宜得多。
+
+## 五、这个设计其实说得通
+
+值得说清楚：`raise NotConfigured` 在这里不算 bug。
+
+`NotConfigured` 是 Scrapy 组件协议的一部分，语义就是「我不该被启用」。`FeedExporter` 拿不准该导出到哪，选择整体下线，比「部分导出」要诚实——**半份数据比没有数据更危险**，尤其当下游按文件存在与否判断任务成败时。
+
+真正的问题是**这个决定在运行时不可见**：
+
+| 你看到的 | 实际发生的 |
+|---|---|
+| 退出码 0 | 爬取确实成功了 |
+| `finish_reason: finished` | 引擎确实正常结束 |
+| `item_scraped_count: 3` | item 确实抓到了 |
+| 目录是空的 | 导出扩展从一开始就没启用 |
+
+日志里那条 ERROR 是唯一的线索，而它出现在启动阶段——**长跑任务里，它在几万行日志的最上面。**
+
+## 六、系列小结
+
+四篇了，四种不同的静默失效：
+
+| 篇 | 失效点 | 表面现象 |
+|---|---|---|
+| [1](/posts/scrapy-start-requests-silent) | `start_requests()` 已无人调用 | 请求数 0 |
+| [2](/posts/scrapy-download-handler-lazy) | 下载处理器建不起来 | 报「不支持的协议」 |
+| [3](/posts/scrapy-settings-silent-drop) | `settings.set()` 优先级低被丢弃 | 配置没生效 |
+| 4 | `FEEDS` 一处配错，全部停用 | 目录是空的 |
+
+**四个的退出码都是 0，`finish_reason` 都是 `finished`。**
+
+如果只能记一条：**不要用「有没有报错」判断任务成功，要用「该出现的东西出现了没有」。**
+
+具体到爬虫，最少要断言三个数：请求数不为 0、item 数不为 0、导出成功数不为 0。三个都是一行代码，而它们盖住了这四篇里的每一种失效。
+
+---
+
+## 参考
+
+- Scrapy 文档：[Feed exports](https://docs.scrapy.org/en/latest/topics/feed-exports.html)
+- Scrapy 文档：[FEEDS 设置](https://docs.scrapy.org/en/latest/topics/feed-exports.html#feeds)
+- Scrapy 文档：[NotConfigured 异常](https://docs.scrapy.org/en/latest/topics/exceptions.html#notconfigured)
+- Scrapy 文档：[Extensions](https://docs.scrapy.org/en/latest/topics/extensions.html)
+- Scrapy 文档：[CLOSESPIDER_ITEMCOUNT](https://docs.scrapy.org/en/latest/topics/extensions.html#closespider-itemcount)（第四节干跑用的）
