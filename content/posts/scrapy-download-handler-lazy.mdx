@@ -1,0 +1,341 @@
+---
+title: 自定义下载处理器炸了，Scrapy 只报「Unsupported URL scheme」——而且这辈子都不会再试一次
+date: 2026-09-05
+category: teardown
+tags: [Scrapy, 工程化, 调试]
+excerpt: DownloadHandlers 把加载失败包装成 NotSupported，原始异常被塞进「不支持的协议」这句话里；失败结果还会永久缓存，一次失败之后同一个 scheme 的所有请求都直接返回缓存，构造函数再也不会被调用第二次。
+series: scrapy-silent-failures
+seriesTitle: Scrapy 的静默失效
+seriesOrder: 2
+draft: false
+---
+
+如果你的自定义下载处理器在构造时抛了异常，Scrapy 会告诉你：
+
+```text
+NotSupported: Unsupported URL scheme 'https': name 'foo' is not defined
+```
+
+**「不支持 https 协议」**——这话每一个字都在误导人。Scrapy 当然支持 https，是你的 handler 建不起来。真正的原因（`name 'foo' is not defined`）被拼在冒号后面，混在一句关于协议的话里。
+
+这篇把 `DownloadHandlers` 的加载路径拆开，实测五种失败方式各自长什么样。
+
+<Note type="warn">
+结论基于 `scrapy 2.17.0` / `Python 3.11.13` 实测。全部实验用自定义 scheme，不联网。
+</Note>
+
+## 一、加载路径
+
+`scrapy/core/downloader/handlers/__init__.py`，两个方法就是全部：
+
+<CallChain steps={[
+  { fn: 'DownloadHandlers.__init__', note: '读 DOWNLOAD_HANDLERS，对每个 scheme 调 _load_handler(skip_lazy=True)' },
+  { fn: '_load_handler(skip_lazy=True)', note: 'lazy=True 的直接返回 None，不构造' },
+  { fn: 'download_request_async', note: '每个请求按 scheme 取 handler' },
+  { fn: '_get_handler(scheme)', note: '查 _handlers 缓存 → 查 _notconfigured 缓存 → 都没有才构造' },
+  { fn: '_load_handler(scheme)', note: 'build_from_crawler，异常一律吞掉记进 _notconfigured', done: true },
+]} />
+
+三个字典构成全部状态：
+
+```python title="scrapy/core/downloader/handlers/__init__.py"
+self._schemes: dict[str, str | Callable[..., Any]] = {}   # 配置里声明的
+self._handlers: dict[str, DownloadHandlerProtocol] = {}   # 已经建好的
+self._notconfigured: dict[str, str] = {}                  # 建失败的
+```
+
+关键在 `_get_handler`：
+
+```python
+def _get_handler(self, scheme: str) -> DownloadHandlerProtocol | None:
+    if scheme in self._handlers:
+        return self._handlers[scheme]
+    if scheme in self._notconfigured:      # ← 失败过就直接返回 None
+        return None
+    if scheme not in self._schemes:
+        self._notconfigured[scheme] = "no handler available for that scheme"
+        return None
+    return self._load_handler(scheme)
+```
+
+以及 `_load_handler` 的异常处理：
+
+```python {5-13}
+def _load_handler(self, scheme: str, skip_lazy: bool = False):
+    path = self._schemes[scheme]
+    try:
+        dhcls = load_object(path)
+        if skip_lazy:
+            if getattr(dhcls, "lazy", True):
+                return None            # ← lazy 的在启动阶段直接跳过
+        dh = build_from_crawler(dhcls, self._crawler)
+    except NotConfigured as ex:
+        self._notconfigured[scheme] = str(ex)      # 安静地记下
+        return None
+    except Exception as ex:
+        logger.error(...)                          # 打 ERROR 但不中断
+        self._notconfigured[scheme] = str(ex)
+        return None
+    self._handlers[scheme] = dh
+    return dh
+```
+
+`except Exception` 之后是 `return None`，**不是 `raise`**。所以任何加载失败都不会让爬虫停下来。
+
+## 二、构造契约：先看清楚它怎么建你的类
+
+写实验之前得先搞对这个，否则测的是自己的 bug（我第一版就是）。
+
+```python title="scrapy/utils/misc.py"
+def build_from_crawler(objcls, crawler, /, *args, **kwargs):
+    if hasattr(objcls, "from_crawler"):
+        instance = objcls.from_crawler(crawler, *args, **kwargs)
+        method_name = "from_crawler"
+    else:
+        instance = objcls(*args, **kwargs)      # ← 注意：不传 crawler
+        method_name = "__new__"
+    if instance is None:
+        raise TypeError(f"{objcls.__qualname__}.{method_name} returned None")
+    return instance
+```
+
+两条路：
+
+- 类上有 `from_crawler` → 调 `cls.from_crawler(crawler)`
+- 没有 → 调 **无参** 的 `cls()`
+
+<Note type="warn">
+把处理器写成 `def __init__(self, crawler)` 而不定义 `from_crawler`，会走第二条路，得到 `TypeError: __init__() missing 1 required positional argument: 'crawler'`。我第一版实验就是这么写的，五个场景报的全是同一个我自己造的 TypeError——测了半天，测的是签名错误，不是 lazy。
+</Note>
+
+还有一条容易漏的：`instance is None` 时抛 `TypeError`。`from_crawler` 忘了 `return`，就会撞在这里。
+
+## 三、五个探针
+
+统一的基类，只改一处行为：
+
+```python title="01-downloadhandlers-lazy.py"
+class Base:
+    lazy = True
+    async def download_request(self, request): ...
+    async def close(self): ...
+
+class BoomLazy(Base):
+    @classmethod
+    def from_crawler(cls, crawler):
+        TRACE.append("尝试构造 handler")
+        raise RuntimeError("构造函数炸了")
+
+class BoomEager(BoomLazy):
+    lazy = False                      # 只改这一个属性
+
+class NotConf(Base):
+    @classmethod
+    def from_crawler(cls, crawler):
+        raise NotConfigured("缺少某个依赖")
+
+class Counting(Base):
+    builds = 0
+    @classmethod
+    def from_crawler(cls, crawler):
+        Counting.builds += 1
+        raise RuntimeError(f"第 {Counting.builds} 次构造，还是炸")
+
+class NoReturn(Base):
+    @classmethod
+    def from_crawler(cls, crawler):
+        cls()                          # 建了，但没返回
+```
+
+`lazy` 唯一改变的是构造时机，而两种情况的报错文案完全一样——光看日志分不出来，得记事件先后：
+
+```python
+TRACE: list[str] = []
+
+class S(scrapy.Spider):
+    @classmethod
+    def from_crawler(cls, crawler, *a, **kw):
+        sp = super().from_crawler(crawler, *a, **kw)
+        # 必须挂绑定方法，不能挂 lambda：SignalManager 用弱引用存接收者，
+        # 临时 lambda 没有别的引用，连上就被回收，信号永远不触发。
+        crawler.signals.connect(sp._opened, signal=scrapy.signals.spider_opened)
+        return sp
+
+    def _opened(self):
+        TRACE.append("spider 打开")
+```
+
+那句注释是买来的：第一版挂的是 `lambda: TRACE.append("spider 打开")`，跑出来 `spider 打开` 一次都没出现过，五个场景的时序全是残缺的。
+
+## 四、结果
+
+```text
+scrapy 2.17.0  python 3.11.13
+
+──── ① lazy=True（默认）：handler 构造抛 RuntimeError
+  [请求] err  NotSupported: Unsupported URL scheme 'probe': 构造函数炸了
+  [时序] spider 打开 → 尝试构造 handler → 请求返回
+  [日志] ERROR: Loading "<class '__main__.BoomLazy'>" for scheme "probe"
+  [日志] RuntimeError: 构造函数炸了
+
+──── ② lazy=False：同一个 handler，只改这一个属性
+  [请求] err  NotSupported: Unsupported URL scheme 'probe': 构造函数炸了
+  [时序] 尝试构造 handler → spider 打开 → 请求返回
+  [日志] ERROR: Loading "<class '__main__.BoomEager'>" for scheme "probe"
+  [日志] RuntimeError: 构造函数炸了
+
+──── ③ 抛 NotConfigured 而不是普通异常
+  [请求] err  NotSupported: Unsupported URL scheme 'probe': 缺少某个依赖
+  [时序] spider 打开 → 尝试构造 handler → 请求返回
+
+──── ④ 同一 scheme 连请求 3 次：失败后会重试构造吗
+  [请求] err  NotSupported: Unsupported URL scheme 'probe': 第 1 次构造，还是炸
+  [请求] err  NotSupported: Unsupported URL scheme 'probe': 第 1 次构造，还是炸
+  [请求] err  NotSupported: Unsupported URL scheme 'probe': 第 1 次构造，还是炸
+  [统计] from_crawler 实际被调用 1 次
+
+──── ⑤ from_crawler 忘了 return
+  [请求] err  NotSupported: Unsupported URL scheme 'probe': NoReturn.from_crawler returned None
+  [日志] TypeError: NoReturn.from_crawler returned None
+```
+
+**五个场景的退出码都是 0，`finish_reason` 都是 `finished`。**
+
+### `lazy` 改变的只有时机
+
+| | 构造发生在 | 时序 |
+|---|---|---|
+| `lazy = True`（默认） | 第一个该 scheme 的请求 | `spider 打开 → 尝试构造 → 请求返回` |
+| `lazy = False` | 启动阶段 | `尝试构造 → spider 打开 → 请求返回` |
+
+报错文案、日志级别、退出码——**全都一样**。区别只有一个：`lazy=False` 的错误发生在爬虫开始之前，`lazy=True` 的发生在跑起来之后。
+
+这在两种场景下意义完全不同：
+
+- **短任务**：都一样，你都会看到那条 ERROR
+- **长跑的爬虫**：`lazy=True` 意味着这条 ERROR 会淹没在几小时的日志里，而那个 scheme 的请求从头到尾静静地全部失败
+
+### 失败会被永久缓存
+
+场景 ④ 是这篇里最该记住的一条：**三个请求，`from_crawler` 只被调用了 1 次。**
+
+第 2、3 个请求根本没有重新尝试构造，它们撞的是 `_notconfigured` 里存着的那个字符串——注意错误消息里始终是「**第 1 次**构造，还是炸」，第 2、3 次压根不存在。
+
+```python
+if scheme in self._notconfigured:
+    return None
+```
+
+这个字典**没有任何过期或清理机制**。一次失败就是永久失败。所以：
+
+<Note type="warn">
+如果你的处理器在构造时依赖某个启动较慢的外部资源（本地代理、浏览器实例、连接池），而它恰好在第一个请求到达时还没就绪——**这一整轮爬取里，该 scheme 再也不会被重试**。不是「重试几次后放弃」，是**一次都不会再试**。
+</Note>
+
+### `NotConfigured` 走的是静音通道
+
+对比 ① 和 ③ 的日志行：① 有 `ERROR` 加完整 traceback，③ **一行日志都没有**。
+
+```python
+except NotConfigured as ex:
+    self._notconfigured[scheme] = str(ex)     # 没有 logger.error
+    return None
+except Exception as ex:
+    logger.error(..., exc_info=True)          # 有
+    self._notconfigured[scheme] = str(ex)
+```
+
+这个设计本身是合理的——`NotConfigured` 表示「这个组件按配置就该关掉」，属于正常情况。但如果你在自己的处理器里用 `NotConfigured` 表达「依赖缺失」，那么**这个失败在日志里完全不留痕迹**，只能从每个请求的 errback 里看到。
+
+## 五、错误消息为什么这么难认
+
+拼装在这里：
+
+```python
+handler = self._get_handler(scheme)
+if not handler:
+    raise NotSupported(
+        f"Unsupported URL scheme '{scheme}': {self._notconfigured[scheme]}"
+    )
+```
+
+`_notconfigured[scheme]` 有三种来源，全部塞进同一句话：
+
+| 真实原因 | 你看到的 |
+|---|---|
+| 配置里就没这个 scheme | `Unsupported URL scheme 'ftp': no handler available for that scheme` |
+| handler 主动 `NotConfigured` | `Unsupported URL scheme 'probe': 缺少某个依赖` |
+| handler 构造时抛异常 | `Unsupported URL scheme 'probe': 构造函数炸了` |
+| `from_crawler` 忘了 return | `Unsupported URL scheme 'probe': NoReturn.from_crawler returned None` |
+
+只有第一种真的是「不支持这个协议」。后三种都是**你的代码有问题**，却被包装成一个关于协议的异常。
+
+冒号后面那半句才是真相。**读这条错误的时候，请从冒号开始读。**
+
+## 六、能做什么
+
+### 想让它启动就失败，就写 `lazy = False`
+
+```python
+class MyHandler:
+    lazy = False        # 建不起来就别让爬虫跑起来
+```
+
+对于「没有它整个爬取就没意义」的处理器，这比跑三小时之后发现全失败要好。代价是启动变慢——`lazy` 存在的理由就是不为用不到的 scheme 付构造成本。
+
+<Note>
+不写 `lazy` 属性会怎样？`getattr(dhcls, "lazy", True)` 默认 `True`，同时 2.17 会打一条 `ScrapyDeprecationWarning` 让你显式声明。**显式写出来**，别依赖默认值——这个属性决定的是失败在什么时候暴露。
+</Note>
+
+### 别在 `from_crawler` 里做会失败的重活
+
+把「连接外部资源」推迟到第一次真正使用，而不是放在构造里。构造失败是永久的，运行时失败至少还能重试。
+
+### 加一条针对 `NotSupported` 的检查
+
+```python
+from scrapy import signals
+from scrapy.exceptions import NotSupported
+
+class HandlerHealth:
+    """NotSupported 一旦出现就是配置或代码问题，不该混在普通失败里。"""
+
+    @classmethod
+    def from_crawler(cls, crawler):
+        ext = cls()
+        crawler.signals.connect(ext.closed, signal=signals.spider_closed)
+        return ext              # ← 忘了 return，这个扩展自己就静默失效了
+
+    def closed(self, spider):
+        n = spider.crawler.stats.get_value(
+            "downloader/exception_type_count/scrapy.exceptions.NotSupported", 0
+        )
+        if n:
+            spider.logger.error(
+                "本轮有 %d 个请求死于 NotSupported —— "
+                "去看冒号后面那半句，多半是下载处理器没建起来", n
+            )
+```
+
+## 七、小结
+
+1. **加载失败不中断爬取。** `except Exception` 之后是 `return None`，只打一条 ERROR
+2. **错误被伪装成协议不支持。** 真实原因在冒号后面
+3. **失败永久缓存。** 三个请求，构造函数只调用一次；`_notconfigured` 没有清理机制
+4. **`NotConfigured` 连日志都不打。** 只能从 errback 看到
+5. **`lazy` 只决定「什么时候炸」**，不决定「炸不炸」——但对长跑爬虫，这个区别就是「启动时发现」和「三小时后发现」
+6. **构造契约是 `from_crawler` 优先、否则无参 `cls()`**，写错签名会得到一个和 lazy 毫无关系的 TypeError
+
+前一篇讲的是请求根本没发出去；这一篇讲的是请求发出去了、但下载器从来没建起来。两个失效都不报错，都退出码 0，都 `finish_reason: finished`。
+
+**共同的教训是同一条：先确认东西在动，再看结果对不对。**
+
+---
+
+## 参考
+
+- Scrapy 文档：[DOWNLOAD_HANDLERS](https://docs.scrapy.org/en/latest/topics/settings.html#download-handlers)
+- Scrapy 文档：[Downloader 相关统计项](https://docs.scrapy.org/en/latest/topics/stats.html)
+- Scrapy 文档：[异常 NotConfigured / NotSupported](https://docs.scrapy.org/en/latest/topics/exceptions.html)
+- Python 文档：[weakref —— 弱引用](https://docs.python.org/zh-cn/3/library/weakref.html)（第三节那个 lambda 被回收的原因）
+- Python 文档：[getattr](https://docs.python.org/zh-cn/3/library/functions.html#getattr)
