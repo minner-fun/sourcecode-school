@@ -3,7 +3,8 @@ import path from 'node:path'
 import matter from 'gray-matter'
 import readingTime from 'reading-time'
 import GithubSlugger from 'github-slugger'
-import { categoryMap, type CategorySlug } from './site'
+// 显式带 .ts 扩展名：Node 原生 ESM 要求扩展名，mcp/ 下的工具直接 import 这个模块
+import { categoryMap, type CategorySlug } from './site.ts'
 
 const POSTS_DIR = path.join(process.cwd(), 'content', 'posts')
 
