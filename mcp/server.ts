@@ -256,6 +256,16 @@ server.registerTool(
     const file = postPath(args.slug)
     if (!(await exists(file))) return text(`❌ 找不到 ${args.slug}.mdx`)
 
+    // 和 draft_post 用同一套判断：坏栏目虽然最终会被 validateAll 拦住，
+    // 但那时的报错来自站点解析器，不会告诉你可选值是哪几个
+    if (args.category) {
+      const { categories } = await site()
+      const slugs = categories.map((c) => c.slug)
+      if (!slugs.includes(args.category as never)) {
+        return text(`❌ category "${args.category}" 不存在，可选：${slugs.join(' / ')}`)
+      }
+    }
+
     const raw = await fs.readFile(file, 'utf8')
     const m = /^---\n([\s\S]*?)\n---\n([\s\S]*)$/.exec(raw)
     if (!m) return text(`❌ ${args.slug}.mdx 的 frontmatter 格式异常，请手工检查`)
@@ -283,12 +293,20 @@ server.registerTool(
     await fs.writeFile(file, `---\n${fmLines.join('\n')}\n---\n\n${body.replace(/^\n+/, '')}`, 'utf8')
 
     const check = await validateAll()
-    return text(
-      [
-        `✅ 已更新 content/posts/${args.slug}.mdx`,
-        check.ok ? `站点解析通过（${check.count} 篇）` : `⚠ 解析报错：${check.error}`,
-      ].join('\n'),
+    const notes = [
+      `✅ 已更新 content/posts/${args.slug}.mdx`,
+      check.ok ? `站点解析通过（${check.count} 篇）` : `⚠ 解析报错：${check.error}`,
+    ]
+    // draft_post 会扫，改稿这条路原先不扫——等于「先写干净再改脏」能整条绕过
+    const hits = scanCommercial(
+      [args.title, args.excerpt, args.body].filter(Boolean).join('\n'),
     )
+    if (hits.length) {
+      notes.push(
+        `⚠ 改动命中经营性措辞 ${hits.join('、')}——站点走个人备案，建议改写`,
+      )
+    }
+    return text(notes.join('\n'))
   },
 )
 
@@ -329,6 +347,12 @@ server.registerTool(
     inputSchema: {
       slug: z.string().describe('要发布的文章 slug'),
       message: z.string().optional().describe('自定义提交信息，缺省用「发布：标题」'),
+      allowCommercial: z
+        .boolean()
+        .optional()
+        .describe(
+          '确认经营性措辞是误报时置 true，跳过该检查。缺省 false，命中即中止发布。',
+        ),
     },
     /*
      * destructiveHint 标 true：这个动作会推送到生产、立刻对外可见，
@@ -342,7 +366,7 @@ server.registerTool(
       readOnlyHint: false,
     },
   },
-  async ({ slug, message }) => {
+  async ({ slug, message, allowCommercial }) => {
     const file = postPath(slug)
     if (!(await exists(file))) return text(`❌ 找不到 ${slug}.mdx`)
 
@@ -357,11 +381,33 @@ server.registerTool(
     }
 
     const raw = await fs.readFile(file, 'utf8')
+
+    /*
+     * 经营性措辞必须拦在 push 之前。draft_post 那里只是提示就够了——草稿还能改；
+     * 到了这里推完就对外可见，事后提示没有意义。
+     * 站点走个人 ICP 备案，个人主体不得含经营性内容，这是唯一真会导致驳回的检查项。
+     * 正则难免误报（讲定价的文章本来就会出现「付费」），所以给一个显式放行开关，
+     * 而不是默认放过。
+     */
+    if (!allowCommercial) {
+      const hits = scanCommercial(raw)
+      if (hits.length) {
+        return text(
+          `❌ 命中经营性措辞 ${hits.join('、')}，已中止发布。\n` +
+            '站点走个人 ICP 备案，个人主体不得含经营性内容。\n' +
+            '确认是误报的话，带 allowCommercial: true 重新调用。',
+        )
+      }
+    }
+
     const published = raw.replace(/^draft:\s*true\s*$/m, 'draft: false')
     if (published !== raw) await fs.writeFile(file, published, 'utf8')
 
     const check = await validateAll()
     if (!check.ok) {
+      // 已经把 draft 翻成 false 了，中止时要还原，否则本地留下一篇
+      // 「不是草稿又没发布」的文章，下次 build 会把它带上线
+      if (published !== raw) await fs.writeFile(file, raw, 'utf8')
       return text(`❌ 校验未通过，已中止发布（否则线上构建会挂）：\n${check.error}`)
     }
 

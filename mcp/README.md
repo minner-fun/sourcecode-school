@@ -52,6 +52,12 @@ get_writing_guide → list_taxonomy → draft_post
 （Node 能直接导入 `.ts`）。站点改栏目或 frontmatter 契约，MCP 自动跟着变，
 不会出现两份 schema 对不上的情况。
 
+代价是得跟着它的约定走：`lib/posts.ts` 用 `process.cwd()` 定位 `content/posts`
+（对 Next 是对的，构建在仓库根跑），而 MCP 是被写作项目拉起的、cwd 在别处。
+所以 `mcp/lib.ts` 启动时 `process.chdir(REPO)`。**漏掉这步的症状很隐蔽**：
+写入走 `REPO` 正常，读取走 cwd 全空——`validate` 永远报「共 0 篇」看着像通过，
+`publish_post` 则卡在「写入后仍未被解析到」，每次发布都失败。
+
 **`publish_post` 标了 `destructiveHint`。** 它推送到生产、立刻对外可见且不幂等，
 客户端应当在调用前征求确认。开发这个服务器时就因为标错成 `false`
 误发布过一篇测试文章。
@@ -62,4 +68,8 @@ get_writing_guide → list_taxonomy → draft_post
 - 推送前强制跑一遍校验：缺字段 / 栏目错 / 日期非法 / slug 重复都会中止，
   否则 Vercel 构建会直接失败
 - 正文扫描经营性措辞（接单、报价、付费……）：站点走个人 ICP 备案，
-  个人主体不得含经营性内容。命中不阻断发布，但会提示
+  个人主体不得含经营性内容。**`draft_post` / `update_post` 命中只提示**（草稿还能改），
+  **`publish_post` 命中直接中止**——推完就对外可见，事后提示没有意义。
+  正则难免误报（讲定价的文章本来就会出现「付费」），确认误报时带 `allowCommercial: true` 放行
+- `publish_post` 校验失败会把已翻成 `draft: false` 的改动还原，
+  不留下「不是草稿又没发布」的文件（否则下次构建会把它带上线）

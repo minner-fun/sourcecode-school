@@ -24,6 +24,19 @@ export const REPO =
 export const POSTS_DIR = path.join(REPO, 'content', 'posts')
 
 /*
+ * 切到站点仓库。lib/posts.ts 用 `path.join(process.cwd(), 'content', 'posts')`
+ * 定位内容目录——这对 Next 是对的（构建在仓库根跑），但 MCP 服务器是被
+ * 写作项目的客户端拉起的，cwd 是那个项目的目录。
+ *
+ * 不切的话，写入走 REPO（对）、读取走 cwd（错），后果是：
+ *   - validate 永远报「解析通过，共 0 篇」，等于没校验
+ *   - publish_post 的「写入后仍未被解析到」检查会让每次发布都中止
+ *
+ * 本进程只服务这一个仓库，chdir 是安全的；git 调用本来就显式带 cwd，不受影响。
+ */
+process.chdir(REPO)
+
+/*
  * lib/posts.ts 只在 NODE_ENV=development 时绕过模块级缓存。
  * MCP 是长驻进程、内容目录一直在变，必须绕过，否则读到的永远是启动那一刻的快照。
  */
