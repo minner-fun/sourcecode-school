@@ -1,0 +1,277 @@
+---
+title: 同一个 IP 一生只查一次：三级读取、双桶限流，和一道只拦花钱请求的人机验证
+date: 2026-09-05
+category: engineering
+tags: [IP 情报, 工程化, 数据管道]
+excerpt: 按量计费的数据源加上公开的查询入口，等于把账单交给陌生人。这套读取与守门的设计里，最关键的一条是：人机验证只拦会真实产生费用的请求，读库返回的报告一律放行——因为那些报告本身就是站点的流量入口。
+series: ip-intel-engineering
+seriesTitle: IP 情报的工程实录
+seriesOrder: 2
+draft: false
+---
+
+把一个查询工具放到公网上，只要它下游接了按量计费的接口，你就把账单的控制权交出去了一部分。缓存挡不住这件事——**攻击者只要每次换一个 IP 查，缓存命中率就是 0**。
+
+这篇讲一套读取与守门的设计，以及其中我认为最值得抄的一条：**人机验证只拦会真实花钱的请求。**
+
+## 一、先看它在线上是什么样
+
+两个 `curl`，同一个接口：
+
+```bash
+curl -s "https://ipure.art/api/lookup?ip=8.8.8.8"
+```
+
+```json
+{
+  "ip": "8.8.8.8",
+  "queriedAt": "2026-08-20T02:17:06.141Z",
+  "risk": { "purity": 78, "level": "neutral", "confidence": "medium" },
+  "source": "cache",
+  "stale": true
+}
+```
+
+秒回，没有任何摩擦。注意 `queriedAt` 是**半个月前**——这份报告是从库里捞出来的，`stale: true` 如实标着。
+
+换一个库里没有的 IP：
+
+```bash
+curl -s "https://ipure.art/api/lookup?ip=185.220.101.1"
+```
+
+```json
+{ "error": "需要完成人机验证后才能发起新的检测", "code": "verification_required" }
+```
+
+**同一个接口，同一个客户端，两种待遇。** 区别只有一个：第二个请求会真实调用下游数据源。
+
+## 二、三级读取
+
+```text
+进程内缓存（6h）  →  SQLite 历史库（永久）  →  实时查询所有数据源
+```
+
+前两级都不花钱，第三级花钱。所以整套设计的目标很单纯：**尽可能不走到第三级。**
+
+```typescript title="lib/config.ts"
+cacheTtlMs: Number(process.env.IPURE_CACHE_TTL_MS ?? 6 * 60 * 60 * 1000),
+dbPath: process.env.IPURE_DB_PATH ?? "./data/ipure.db",
+```
+
+### 库里有旧报告时，不自动重查
+
+这是个反直觉但正确的选择：
+
+> **历史库命中时不会自动重查**，哪怕记录已经很旧。这是刻意的 —— 自动刷新等于放弃了落库的意义，而 IP 的性质（机房还是家宽、注册在哪）本来就很少变。
+
+上面那份 `8.8.8.8` 的报告放了半个月，照样直接返回。它没有假装新鲜，`stale: true` 摆在那里，由看报告的人决定要不要点「重新检测」。
+
+<Note>
+「陈旧但标注了」比「自动保鲜」好，是因为**后者把成本决策从用户手里拿走了**。自动刷新的系统里，没人知道自己刚才那次点击花了多少钱。
+</Note>
+
+### 落库的第二重收益
+
+每份存下来的报告都是一个 `/ip/xxx` 页面。这一条决定了后面人机验证的设计——**这些页面是站点的主要流量入口，绝不能让爬虫撞上验证页**。
+
+## 三、限流分桶：一个计数器保护不了两种成本
+
+最容易写错的地方是**只用一个限流计数器**。
+
+```typescript title="lib/rate-limit.ts"
+export type RateBucket = "query" | "fresh" | "refresh";
+
+const BUCKET_MAX: Record<RateBucket, () => number> = {
+  query:   () => config.rateLimit.max,        // 30 次/分钟
+  fresh:   () => config.rateLimit.freshMax,   // 10 次/分钟
+  refresh: () => config.rateLimit.refreshMax, //  5 次/分钟
+};
+```
+
+三个桶，各自独立计数：
+
+| 桶 | 是什么 | 上限（每分钟） | 花钱吗 |
+|---|---|---|---|
+| `query` | 所有请求 | 30 | 大多不花 |
+| `fresh` | 库里没有、会真实查询的 | 10 | **花** |
+| `refresh` | 用户强制重查的 | 5 | **花** |
+
+为什么必须分开：
+
+```typescript
+// 两个桶各自独立计数，否则严格的 refresh 上限会被普通查询挤占掉。
+const bucketKey = `${bucket}:${key}`;
+```
+
+共用一个桶的话，一个正常用户翻十几个历史报告页就把配额吃光了，而真正该被限制的那 5 次强制重查反而挤不进来——**限流限住了不花钱的，放过了花钱的**，正好反了。
+
+还有一个坑写在注释里：
+
+```typescript
+/**
+ * 计数器走 singleton 注册表，否则页面和 API 各记一份，实际放行量会翻倍。
+ */
+```
+
+Next.js 里页面和 API 路由分属不同模块图。模块级的 `new LRUCache()` 会被实例化两次，**限流上限静默翻倍**——不报错，只是没那么严了。
+
+## 四、配额守门：永远不产生计划外的费用
+
+限流管的是「每分钟多少次」，配额管的是「今天总共多少次」。
+
+```typescript title="lib/quota.ts"
+/**
+ * 商业数据源的每日配额守门。
+ *
+ * 目的很直接：**永远不产生计划外的费用**。免费额度用完后继续调用，
+ * 轻则被拒，重则进入按量计费。所以到达上限就停用该源，
+ * 报告里如实标注"当日配额已用尽"，其它数据源照常工作。
+ *
+ * 计数按 UTC 日期分桶并持久化 —— 内存计数一次重启就清零，
+ * 而供应商那边的额度不会跟着重置。
+ */
+```
+
+三个细节都是踩出来的：
+
+**① 留 5% 安全边际。**
+
+```typescript
+/** 留出的安全边际：用到 95% 就停手，避免边界竞态把额度打穿。 */
+const SAFETY_RATIO = 0.95;
+```
+
+并发请求同时读到「还剩 1 次」，然后一起调用——边界上打穿几次很正常。5% 的余量比精确计数便宜得多。
+
+**② 按 UTC 分桶，不按本地时区。** 多数供应商按 UTC 零点重置。用本地时区分桶，会在时差那几个小时里对不上账。
+
+**③ 计数必须持久化。** 内存计数一次重启就清零，**而供应商那边的额度不会跟着重置**。这条如果搞错，一天重启几次就等于没有配额控制。
+
+配额读不出来时是放行的：
+
+```typescript
+} catch {
+  // 计数读不出来时放行：宁可多调一次，也不要因为存储故障让整个源失效。
+  return { used: 0, limit: dailyLimit, remaining: effective, exhausted: false };
+}
+```
+
+这里选了 fail-open。存储故障时多花几次调用的钱，好过整个数据源失效——**成本是有限的，功能失效是无限的**。
+
+<Note type="warn">
+注意下一节的人机验证选了**相反**的方向（fail-closed）。同一个系统里两处容错方向不同，不是不一致，是因为**失败的代价不同**：配额多算几次只是小钱，验证放过则可能被批量刷。
+</Note>
+
+## 五、只拦会花钱的请求
+
+这是整套设计里我最想推荐的一条。
+
+常见做法是给整个查询入口挂人机验证。那样确实安全，但会同时挡住搜索引擎——而对一个靠报告页吃搜索长尾的站来说，**这等于关掉自己的主要流量入口**。
+
+所以判断放在了「这次请求会不会花钱」上：
+
+```typescript title="lib/lookup.ts"
+/**
+ * 这次查询会不会真实消耗数据源配额？
+ *
+ * 人机验证据此决定拦不拦：只有会花钱的请求才值得让用户过一道验证，
+ * 读库返回的报告不该有任何摩擦 —— 那既伤体验，也会让爬虫撞上验证页，
+ * 而报告页正是站点的主要流量入口。
+ */
+export async function willCostQuota(input, opts = {}): Promise<boolean> {
+  const ip = parseIp(input);
+  // 非法输入根本走不到查询；保留地址会短路，不碰任何外部源。
+  if (!ip || ip.isBogon) return false;
+
+  if (opts.refresh) return true;
+  if (cacheGet<LookupResult>(`lookup:${ip.normalized}`)) return false;
+
+  try {
+    return (await getStore().get(ip.normalized)) === null;
+  } catch {
+    // 存储不可用时按"会花钱"处理，宁可多验一次也不放过真实查询。
+    return true;
+  }
+}
+```
+
+页面侧用同一个判断：
+
+```typescript title="lib/gate.ts"
+export async function needsHumanCheck(ip: string): Promise<boolean> {
+  if (!turnstileEnabled()) return false;
+  const jar = await cookies();
+  if (isVerifyTokenValid(jar.get(VERIFY_COOKIE_NAME)?.value)) return false;
+  return willCostQuota(ip);
+}
+```
+
+**API 和页面共用一套规则**，这点很重要——两边各写一份判断，迟早会出现「页面放行、接口拦截」的错位。
+
+四条短路，每条都有理由：
+
+| 条件 | 拦不拦 | 为什么 |
+|---|---|---|
+| 非法 IP / 保留地址 | 放行 | 根本走不到外部源，拦了纯属添堵 |
+| 显式 `refresh` | **拦** | 这是花钱的定义 |
+| 命中内存缓存 | 放行 | 不碰外部源 |
+| 命中历史库 | 放行 | 不碰外部源，且这是搜索引擎要抓的页面 |
+| 库里没有 | **拦** | 会真实查询 |
+| 存储读不出来 | **拦** | fail-closed，宁可多验一次 |
+
+第二节那两个 `curl` 就是这张表的实证：`8.8.8.8` 命中库 → 直接给报告；`185.220.101.1` 库里没有 → 要求验证。
+
+## 六、降级要喊出来
+
+最后一条和成本无关，但和「静默失效」有关。
+
+SQLite 不可用时会降级到内存存储：
+
+```typescript title="lib/store/index.ts"
+} catch (e) {
+  // 只读文件系统、权限不足等情况下降级：少了历史沉淀，
+  // 但查询功能完整，不能因为存储不可用就让整个站不能用。
+  //
+  // 但必须喊出来。这个状态下站点看起来一切正常，只是重启后历史清零、
+  // sitemap 退化成只剩首页 —— 一条 warn 混在日志里没人会注意。
+  // /api/health 在这个状态下返回 503，容器会显示 unhealthy。
+  console.error(
+    `[store] sqlite unavailable (...), falling back to memory — ` +
+      `history will NOT persist across restarts`,
+  );
+  return createMemoryStore();
+}
+```
+
+降级本身是对的。危险的是**降级之后一切看起来都正常**：查询能用、报告能出、页面能开。你只会在某天发现 sitemap 只剩首页、历史报告全没了。
+
+处理方式是两条：日志打 `error` 而不是 `warn`，以及**让 `/api/health` 在这个状态下返回 503**，容器编排层直接显示 unhealthy。
+
+<Note>
+「降级」和「降级了但没人知道」是两种完全不同的东西。
+
+判断标准很简单：**这个降级状态，有没有一个外部可观测的信号？** 一条日志不算——日志只有出事之后才有人翻。健康检查算，因为它会主动变红。
+</Note>
+
+## 七、小结
+
+1. **缓存挡不住恶意调用**——换 IP 就绕过去了，必须另有限流
+2. **限流按成本分桶**，共用一个计数器等于「限住不花钱的，放过花钱的」
+3. **配额计数要持久化、按 UTC 分桶、留安全边际**，因为供应商的额度不会跟着你重启而重置
+4. **人机验证只拦会花钱的请求**，读库的一律放行——否则等于关掉自己的搜索流量入口
+5. **两处容错方向可以相反**，取决于失败的代价：配额 fail-open，验证 fail-closed
+6. **降级必须有外部可观测信号**，日志不算，健康检查算
+
+上一篇讲的是免费数据源之间的分歧；这一篇讲的是怎么少查、以及必须查的时候怎么不被人替你花钱。
+
+---
+
+## 参考
+
+- Cloudflare 文档：[Turnstile](https://developers.cloudflare.com/turnstile/)
+- MDN：[Retry-After](https://developer.mozilla.org/zh-CN/docs/Web/HTTP/Reference/Headers/Retry-After)
+- [lru-cache](https://github.com/isaacs/node-lru-cache)（限流窗口用的）
+- SQLite 文档：[WAL 模式](https://www.sqlite.org/wal.html)
+- Wikipedia：[滑动窗口限流](https://en.wikipedia.org/wiki/Rate_limiting)
+- RFC 6890：[特殊用途地址（bogon 的依据）](https://www.rfc-editor.org/rfc/rfc6890)
