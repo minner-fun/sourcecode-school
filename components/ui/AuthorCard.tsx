@@ -21,16 +21,16 @@ export function AuthorCard() {
         </p>
         <div className="flex flex-wrap gap-2.5">
           <Link
-            href="/hire"
-            className="border border-brand px-3.5 py-1.5 font-mono text-[12px] font-medium text-brand transition-colors hover:bg-brand hover:text-bg"
+            href="/about"
+            className="border border-line px-3.5 py-1.5 font-mono text-[12px] font-medium text-ink transition-colors hover:border-brand hover:text-brand"
           >
-            查看服务
+            关于与联系
           </Link>
           <Link
-            href="/contact"
-            className="border border-line px-3.5 py-1.5 font-mono text-[12px] font-medium text-ink transition-colors hover:border-ink"
+            href="/feed.xml"
+            className="border border-line px-3.5 py-1.5 font-mono text-[12px] font-medium text-ink transition-colors hover:border-brand hover:text-brand"
           >
-            联系方式
+            RSS 订阅
           </Link>
         </div>
       </div>

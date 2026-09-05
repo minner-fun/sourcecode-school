@@ -38,7 +38,7 @@ export const site = {
   /** 用在首页 hero 和 <title> 模板里 */
   tagline: '记录数据采集、逆向分析与数据工程的实际过程',
   description:
-    '写自媒体与电商平台的数据采集、接口协议还原、参数加密分析，以及采集系统与数据管道在长期运行中遇到的实际问题。文章只写验证过的内容。同时承接相关的数据采集与分析需求。',
+    '写自媒体与电商平台的数据采集、接口协议还原、参数加密分析，以及采集系统与数据管道在长期运行中遇到的实际问题。只写验证过的内容。',
   author: {
     name: 'Minner',
     /** 关于页与文章末尾作者卡使用 */
@@ -52,13 +52,18 @@ export const site = {
     telegram: '',
     github: 'https://github.com/minner-fun',
   },
-  /** 备案号，国内节点必填，留空则页脚不显示 */
+  /**
+   * 备案信息，国内节点必填，留空则页脚不显示。
+   * icp   工信部 ICP 备案号，形如 沪ICP备xxxxxxxx号
+   * police 公安备案号（纯数字），页脚需链接到 beian.mps.gov.cn 对应查询页
+   */
   icp: '',
+  police: '',
 } as const
 
 /**
- * 栏目划分。主线做采集/逆向（承接需求 + 吃搜索长尾），
- * 副线做数据工程与开发（能力举证），时事只作引流，不进站点主干。
+ * 栏目划分。主线做采集/逆向（搜索长尾最肥的方向），
+ * 副线做数据工程与开发，时事只作补充，不进站点主干。
  */
 export const categories = [
   {
@@ -97,8 +102,7 @@ export const nav = [
   { href: '/', label: '文章' },
   { href: '/series', label: '系列' },
   { href: '/tools', label: '工具' },
-  { href: '/cases', label: '案例' },
   { href: '/archive', label: '归档' },
   { href: '/search', label: '搜索' },
-  { href: '/hire', label: '关于与接单' },
+  { href: '/about', label: '关于' },
 ] as const

@@ -30,6 +30,16 @@ export function Footer() {
             {site.icp}
           </a>
         ) : null}
+        {site.police ? (
+          <a
+            href={`https://beian.mps.gov.cn/#/query/webSearch?code=${site.police}`}
+            target="_blank"
+            rel="noreferrer noopener"
+            className="transition-colors hover:text-brand"
+          >
+            沪公网安备 {site.police} 号
+          </a>
+        ) : null}
         <span className="w-full sm:ml-auto sm:w-auto">
           技术内容仅供学习交流，请勿用于非法用途
         </span>

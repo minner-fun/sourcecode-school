@@ -3,7 +3,7 @@ import { getAllPosts, getAllSeries, getAllTags } from '@/lib/posts'
 import { categories, site } from '@/lib/site'
 import { PostItem } from '@/components/ui/PostItem'
 import { StatusLadder } from '@/components/ui/StatusLadder'
-import { HireCard } from '@/components/ui/HireCard'
+import { AboutCard } from '@/components/ui/AboutCard'
 import { TagChip } from '@/components/ui/TagChip'
 import { SectionTitle } from '@/components/ui/SectionTitle'
 
@@ -77,7 +77,7 @@ export default function HomePage() {
         </div>
 
         <aside className="flex flex-col gap-9 lg:sticky lg:top-24">
-          <HireCard />
+          <AboutCard />
 
           {series.length > 0 ? (
             <div>

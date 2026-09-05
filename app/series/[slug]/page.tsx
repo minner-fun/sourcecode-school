@@ -2,7 +2,7 @@ import type { Metadata } from 'next'
 import { notFound } from 'next/navigation'
 import { getAllSeries, getSeries } from '@/lib/posts'
 import { PostRow } from '@/components/ui/PostRow'
-import { HireCard } from '@/components/ui/HireCard'
+import { AboutCard } from '@/components/ui/AboutCard'
 
 export function generateStaticParams() {
   return getAllSeries().map((s) => ({ slug: s.slug }))
@@ -50,7 +50,7 @@ export default async function SeriesDetailPage({
         </div>
       </div>
       <aside className="lg:sticky lg:top-24">
-        <HireCard />
+        <AboutCard />
       </aside>
     </div>
   )
