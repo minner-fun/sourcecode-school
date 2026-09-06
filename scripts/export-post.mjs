@@ -90,12 +90,14 @@ function transformComponents(body, slug) {
  * ---------------------------------------------------------------- */
 
 const INLINE = {
-  p: 'font-size:16px;line-height:1.85;margin:1.1em 0;color:#3f4650;',
+  // text-align:left 是必须的：公众号正文默认两端对齐，遇到「文字（长地址）」
+  // 这种断不开的整块，会把词间空格拉得很开。word-break 让地址本身可以折。
+  p: 'font-size:16px;line-height:1.85;margin:1.1em 0;color:#3f4650;text-align:left;word-break:break-word;',
   h2: 'font-size:20px;font-weight:600;line-height:1.5;margin:2em 0 .8em;color:#16191d;border-left:4px solid #1f5eda;padding-left:12px;',
   h3: 'font-size:17px;font-weight:600;line-height:1.5;margin:1.6em 0 .6em;color:#16191d;',
   ul: 'padding-left:1.4em;margin:1.1em 0;',
   ol: 'padding-left:1.4em;margin:1.1em 0;',
-  li: 'font-size:16px;line-height:1.85;margin:.35em 0;color:#3f4650;',
+  li: 'font-size:16px;line-height:1.85;margin:.35em 0;color:#3f4650;text-align:left;word-break:break-word;',
   blockquote:
     'border-left:3px solid #1f5eda;background:#f4f7fe;padding:.9em 1.1em;margin:1.4em 0;color:#3f4650;font-size:15px;line-height:1.8;',
   strong: 'font-weight:600;color:#16191d;',
@@ -161,10 +163,36 @@ function rehypeWechat() {
       })
       // shiki 自带 background-color，再补一层边框和内边距
       block.node.type = 'raw'
-      block.node.value = html.replace(
-        '<pre class="shiki',
-        '<pre style="border:1px solid #e4e7ec;border-radius:8px;padding:14px 16px;overflow-x:auto;font-size:13px;line-height:1.7;margin:1.4em 0;" class="shiki',
-      )
+      /*
+       * 公众号会剥掉 class 属性，所以任何依赖 class 的东西都要改成内联。
+       * shiki 靠 <span class="line"> 分行，class 一没就全挤成一行 ——
+       * 第一版发到草稿箱就是这个样子。
+       * 两处都要改：pre 上补 white-space:pre 保住缩进，
+       * 每个 line 加 display:block 保住换行，两者缺一不可。
+       */
+      block.node.value = html
+        /*
+         * 整个 <pre> 开标签换掉，而不是往里插。
+         * shiki 自带 style="background-color..."，只做插入会留下两个 style 属性，
+         * 取哪个由过滤器决定 —— 公众号那边取后一个，我们加的 white-space 就没了。
+         */
+        .replace(
+          /<pre class="shiki[^"]*" style="([^"]*)"[^>]*>/,
+          (_m, shikiStyle) =>
+            `<pre style="${shikiStyle};border:1px solid #e4e7ec;border-radius:8px;` +
+            'padding:14px 16px;overflow-x:auto;font-size:13px;line-height:1.7;' +
+            'margin:1.4em 0;white-space:pre;text-align:left;">',
+        )
+        .replaceAll(
+          '<span class="line">',
+          '<span class="line" style="display:block;min-height:1.7em;">',
+        )
+        /*
+         * 行与行之间那个换行符必须去掉。
+         * display:block 已经负责换行，而 white-space:pre 会让这个 \n 也生效 ——
+         * 两者叠加就是每行之间空一行，第一版发出去就是那样。
+         */
+        .replaceAll('</span>\n<span class="line"', '</span><span class="line"')
       block.node.children = []
     }
   }
@@ -181,9 +209,24 @@ async function toWechatHtml(markdown, title) {
 
   return `<section style="font-family:-apple-system,'PingFang SC','Microsoft YaHei',sans-serif;color:#3f4650;">
 <h1 style="font-size:22px;font-weight:600;line-height:1.4;margin:0 0 1.2em;color:#16191d;">${title}</h1>
-${String(file)}
+${tightenLists(String(file))}
 </section>
 `
+}
+
+/**
+ * 去掉列表标签之间的空白。
+ *
+ * 公众号编辑器会把 <ul> 里的游离空白（我们这里是 </li> 和 <li> 之间的换行）
+ * 渲染成一个空的列表项 —— 于是每条参考文献前面都多出一个空 bullet。
+ * 代码块不受影响：它们是 raw 节点，且已经带了 white-space:pre，
+ * 这里只动列表标签之间的缝隙。
+ */
+function tightenLists(html) {
+  return html
+    .replace(/(<\/li>)\s+(<li)/g, '$1$2')
+    .replace(/(<[uo]l[^>]*>)\s+(<li)/g, '$1$2')
+    .replace(/(<\/li>)\s+(<\/[uo]l>)/g, '$1$2')
 }
 
 /* ------------------------------------------------------------------
