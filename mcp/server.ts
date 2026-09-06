@@ -30,6 +30,7 @@ import {
   referencedAssets,
 } from './lib.ts'
 import { ping, urlsForPost, waitLive } from './indexnow.ts'
+import { draftToWechat } from './topublish.ts'
 
 const server = new McpServer({ name: 'sourcecode-school', version: '1.0.0' })
 
@@ -515,6 +516,55 @@ server.registerTool(
       '下一步：百度需要单独提交（不吃 IndexNow），隔一两天再发公众号/知乎并注明原文链接。',
     )
     return text(lines.join('\n'))
+  },
+)
+
+server.registerTool(
+  'draft_to_wechat',
+  {
+    title: '同步到公众号草稿箱',
+    description:
+      '把一篇已发布的文章送进公众号草稿箱：转成全内联样式的 HTML、把正文图片传到微信、'
+      + '生成封面、建草稿，「阅读原文」指向本站原文。**只到草稿箱，不发布**——'
+      + '群发不可逆且每天有次数上限，那一步在公众号后台手动点。'
+      + '按站点约定，本站首发并被收录之后再同步，否则原创权会判给公众号。',
+    inputSchema: {
+      slug: z.string().describe('要同步的文章 slug，必须是已发布的（draft: false）'),
+      titleOverride: z
+        .string()
+        .optional()
+        .describe('公众号标题上限 64 字；站点标题太长时用这个另给一个'),
+      author: z.string().optional().describe('署名，缺省用站点名'),
+    },
+    /*
+     * 写到对方平台、会消耗素材配额且要人去后台清理，标 destructive
+     * 让客户端调用前确认。但它不对外可见，所以 openWorldHint 为 false。
+     */
+    annotations: {
+      destructiveHint: true,
+      idempotentHint: false,
+      openWorldHint: false,
+      readOnlyHint: false,
+    },
+  },
+  async ({ slug, titleOverride, author }) => {
+    try {
+      const r = await draftToWechat(slug, { titleOverride, author })
+      return text(
+        [
+          `✅ 已写入公众号草稿箱：${r.title}`,
+          `正文 ${r.htmlBytes} 字节，封面 ${r.coverBytes} 字节`,
+          r.images.length
+            ? `正文图片 ${r.images.length} 张已传到微信：${r.images.map((i) => i.local).join('、')}`
+            : '正文没有图片',
+          `阅读原文指向 ${r.sourceUrl}`,
+          '',
+          '去公众号后台草稿箱核对排版，确认无误后手动群发。',
+        ].join('\n'),
+      )
+    } catch (e) {
+      return text(`❌ 同步失败：${e instanceof Error ? e.message : String(e)}`)
+    }
   },
 )
 

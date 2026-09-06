@@ -36,6 +36,7 @@
 | `update_post` | 改已有文章的正文或 frontmatter |
 | `validate` | 用站点自己的解析器跑一遍，提前暴露会让线上构建失败的问题 |
 | `publish_post` | 转正、提交、推送，等页面上线后推 IndexNow。**会立刻对外可见** |
+| `draft_to_wechat` | 把已发布的文章送进公众号草稿箱。**不发布** |
 
 ## 典型流程
 
@@ -82,6 +83,43 @@ get_writing_guide → list_taxonomy → draft_post
 **换 key 要同时改这两处**，发布前会核对，对不上就跳过推送并说明原因。
 
 不想推时带 `skipIndexNow: true`（改错别字之类），省约一分钟。
+
+## 公众号草稿箱
+
+`draft_to_wechat <slug>`：转 HTML → 正文图片传到微信 → 生成封面 → 建草稿。
+**只到草稿箱**，群发不可逆且每天有次数上限，那一步在后台手动点。
+
+凭据放在 `~/.config/wechat-mp.env`（`APP_ID` / `APP_SECRET`，`chmod 600`），
+不进仓库、不写日志。
+
+两个环境约束，缺一个都会 `40164`：
+
+- **必须走 IPv4**。本机直连默认解析到 IPv6，而微信白名单只收 IPv4。
+  代码里 `dns.setDefaultResultOrder('ipv4first')` 放在模块顶层。
+- **必须绕开代理**。走 clash 时出口是境外节点，和白名单里的地址对不上。
+  Node 的 fetch 本来就不读 `HTTP_PROXY`，实测确认过。
+
+换网络环境要重新加白名单：`curl -s -4 --noproxy '*' https://ipv4.icanhazip.com`。
+
+### 它的过滤器会改你的 HTML
+
+这几条都是实际发到草稿箱才看出来的，本地浏览器里全都正常：
+
+1. **`class` 属性会被剥掉** —— 任何靠 class 的样式都得内联。shiki 靠
+   `<span class="line">` 分行，不处理就整块挤成一行。
+2. **`<ul>` 里的游离空白会变成空列表项** —— `</li>` 和 `<li>` 之间的换行
+   会让每条参考文献前面多一个空 bullet。列表标签之间不能留空白。
+3. **正文默认两端对齐** —— 「文字（长地址）」断不开，只能靠拉伸词间空格
+   对齐，看起来字距奇大。`p` / `li` 要显式 `text-align:left`。
+4. **同名属性重复时结果不确定** —— 往 `<pre>` 里插 style 会和 shiki 自带的
+   并存成两个，现在整个开标签换掉合并成一个。
+
+修法都在 `scripts/export-post.mjs`，转换规则只有那一份。
+
+### 封面
+
+`mcp/cover.ts` 用 headless Chrome 截 `mcp/assets/cover.html`，900×383
+（公众号推荐的 2.35:1）。改配色只动模板，不动代码。
 
 ## 安全约束
 
