@@ -1,0 +1,272 @@
+---
+title: raise NotConfigured 带不带消息，决定了它是一条 WARNING 还是零日志——而管道就是这么没的
+date: 2026-09-06
+category: teardown
+tags: [Scrapy, 工程化, 调试]
+excerpt: MiddlewareManager 里那句 if e.args 决定一切：带消息的 NotConfigured 打一条 WARNING，不带的一行日志都没有。实测一个裸 raise NotConfigured 的管道——item 抓到 3 条，落库 0 条，退出码 0，日志零行。
+series: scrapy-silent-failures
+seriesTitle: Scrapy 的静默失效
+seriesOrder: 5
+draft: false
+---
+
+前一篇讲 `FEEDS` 配错会让整个导出扩展下线。那篇没往下追的是**为什么它这么安静**。
+
+答案在 `MiddlewareManager` 里，一个 `if`：
+
+```python title="scrapy/middleware.py" {6}
+for clspath in mwlist:
+    try:
+        mwcls = load_object(clspath)
+        mw = build_from_crawler(mwcls, crawler)
+        middlewares.append(mw)
+        enabled.append(clspath)
+    except NotConfigured as e:
+        if e.args:                      # ← 就是这里
+            logger.warning(
+                "Disabled %(clspath)s: %(eargs)s",
+                {"clspath": clspath, "eargs": e.args[0]},
+                extra={"crawler": crawler},
+            )
+```
+
+**`raise NotConfigured("需要 API key")`** → 打一条 WARNING。
+
+**`raise NotConfigured`** → `e.args` 是空元组，`if` 不成立，**一行日志都没有**。
+
+而「不带消息地 raise」恰恰是最自然的写法。
+
+<Note type="warn">
+本文在 `scrapy 2.17.0` / `Python 3.11.13` 上实测。每个场景独立子进程，不联网。
+</Note>
+
+## 一、四种写法，四种结果
+
+```text
+scrapy 2.17.0  python 3.11.13
+
+──── ① raise NotConfigured("需要 FOO_API_KEY")
+  退出码 0
+  与该扩展有关的日志: WARNING: Disabled __main__.WithMessage: 需要 FOO_API_KEY
+  [启用的扩展] ['CoreStats', 'Fine', 'LogCount', 'LogStats', 'MemoryUsage']
+
+──── ② raise NotConfigured        （无括号）
+  退出码 0
+  与该扩展有关的日志: （一行都没有）
+  [启用的扩展] ['CoreStats', 'Fine', 'LogCount', 'LogStats', 'MemoryUsage']
+
+──── ③ raise NotConfigured()      （有括号无参数）
+  退出码 0
+  与该扩展有关的日志: （一行都没有）
+  [启用的扩展] ['CoreStats', 'Fine', 'LogCount', 'LogStats', 'MemoryUsage']
+
+──── ④ raise RuntimeError         （不是 NotConfigured）
+  退出码 1
+  与该扩展有关的日志: Traceback (most recent call last):
+```
+
+②③ 完全一样——`NotConfigured` 和 `NotConfigured()` 的 `args` 都是空元组。
+
+④ 值得单独说：**只有 `NotConfigured` 被捕获**，别的异常一路上抛，启动直接失败、退出码 1。这个设计是对的——「组件按配置就该关掉」和「组件坏了」是两回事，后者必须响亮。
+
+问题在于前者安静得过头了。
+
+## 二、同一段代码管着四种组件
+
+```text
+scrapy/extension.py:18                class ExtensionManager(MiddlewareManager)
+scrapy/core/spidermw.py:48            class SpiderMiddlewareManager(MiddlewareManager)
+scrapy/core/downloader/middleware.py:34  class DownloaderMiddlewareManager(MiddlewareManager)
+scrapy/pipelines/__init__.py:31       class ItemPipelineManager(MiddlewareManager)
+```
+
+**扩展、爬虫中间件、下载中间件、Item Pipeline——全走同一个 `from_crawler`。**
+
+扩展悄悄没了，通常只是少个功能。**管道悄悄没了，是数据没落库。**
+
+## 三、管道版实测
+
+一个再普通不过的管道：需要 `DB_DSN` 才能工作，没配就停用。作者用了最自然的写法。
+
+```python title="02-管道被静默停用.py"
+class SavePipelineSilentlyDead(SavePipeline):
+    """少配了一项，作者用了最自然的写法：裸 raise NotConfigured"""
+
+    @classmethod
+    def from_crawler(cls, crawler):
+        if not crawler.settings.get("DB_DSN"):
+            raise NotConfigured                  # ← 没带消息
+        return cls(Path(crawler.settings["OUT_FILE"]))
+```
+
+跑三个请求，每个产出一条 item：
+
+```text
+──── ① 管道正常（对照组）
+  退出码 0
+  [统计] item_scraped_count=3  finish_reason=finished
+  [落库] 3 条
+  [启用的管道] ['__main__.SavePipeline']
+
+──── ② 管道裸 raise NotConfigured（少配 DB_DSN）
+  退出码 0
+  [统计] item_scraped_count=3  finish_reason=finished
+  [落库] 0 条
+  [日志] 关于管道被停用：一行都没有
+  [启用的管道] []
+```
+
+<Note type="warn">
+**`item_scraped_count=3`，落库 0 条。**
+
+Scrapy 没说谎——那三条 item 确实被「抓到」了，`item_scraped_count` 统计的是引擎产出的 item 数，不是落库数。管道不在了，它们经过了一条空的处理链，然后被丢掉。
+
+退出码 0，`finish_reason: finished`，**关于管道被停用零行日志**。
+</Note>
+
+如果你的监控看的是 `item_scraped_count`——很多人是这么做的——**这次运行看起来完美**。
+
+## 四、唯一的线索
+
+`[启用的管道] []` 这一行来自 Scrapy 自己打的 INFO 日志：
+
+```python
+logger.info(
+    "Enabled %(componentname)ss:\n%(enabledlist)s",
+    {"componentname": cls.component_name, "enabledlist": pprint.pformat(enabled)},
+    extra={"crawler": crawler},
+)
+```
+
+启动时它会打出来：
+
+```text
+[scrapy.middleware] INFO: Enabled item pipelines:
+[]
+```
+
+**这是唯一的信号，而且它是 INFO 级、出现在启动阶段、内容是一个空列表。** 在几万行日志的最上面，长得完全不像一个问题。
+
+## 五、三条应对
+
+### 一、自己写的组件，`NotConfigured` 一律带消息
+
+```python
+# 别这么写
+raise NotConfigured
+
+# 这么写
+raise NotConfigured("未配置 DB_DSN，SavePipeline 已停用")
+```
+
+一个字符串的成本，换一条 WARNING。**这是投入产出比最高的一条。**
+
+顺带一提，消息里写清楚**是谁、缺什么**——`logger.warning` 的格式是 `Disabled <clspath>: <消息>`，clspath 它会替你带上，你负责说清缺什么。
+
+### 二、断言关键组件真的在
+
+```python
+from scrapy import signals
+
+class AssertPipelines:
+    """管道被静默停用时，item_scraped_count 照常增长，看不出任何异常。"""
+
+    REQUIRED = {"SavePipeline"}
+
+    def __init__(self, crawler):
+        self.crawler = crawler
+
+    @classmethod
+    def from_crawler(cls, crawler):
+        ext = cls(crawler)
+        crawler.signals.connect(ext.opened, signal=signals.spider_opened)
+        return ext          # ← 忘了 return，这个扩展自己就静默失效了
+
+    def opened(self):
+        names = {type(p).__name__ for p in self.crawler.engine.scraper.itemproc.middlewares}
+        missing = self.REQUIRED - names
+        if missing:
+            raise RuntimeError(f"必需的管道没有启用：{sorted(missing)}")
+```
+
+挂在 `spider_opened` 上、而且**直接抛异常**——这类问题越早炸越好，跑完三小时再报警没有意义。
+
+<Note>
+上一篇里我给的自检挂在 `spider_closed` 上，结果配置正确的运行也误报，因为 feed 落盘发生在那之后。
+
+这里相反：组件在不在，**开跑那一刻就已经确定**，所以越早查越好。
+
+**「什么时候查」取决于「这个事实什么时候成立」**，不是随便挑一个信号挂上去。
+</Note>
+
+### 三、把启动日志里那两行捞出来
+
+上线前扫一眼，比事后查便宜得多：
+
+```bash
+scrapy crawl myspider -s CLOSESPIDER_ITEMCOUNT=1 2>&1 \
+  | grep -A1 -E "Enabled (extensions|item pipelines|downloader middlewares|spider middlewares)"
+```
+
+看到任何一个是 `[]`，或者少了你以为该在的东西，就说明有组件被悄悄停用了。
+
+## 六、系列到这里
+
+五篇，五种静默失效：
+
+| 篇 | 失效点 | 表面现象 |
+|---|---|---|
+| [1](/posts/scrapy-start-requests-silent) | `start_requests()` 已无人调用 | 请求数 0 |
+| [2](/posts/scrapy-download-handler-lazy) | 下载处理器建不起来且永久缓存 | 报「不支持的协议」 |
+| [3](/posts/scrapy-settings-silent-drop) | `settings.set()` 优先级低被丢弃 | 配置没生效 |
+| [4](/posts/scrapy-feeds-all-or-nothing) | `FEEDS` 一处配错，导出全停 | 目录是空的 |
+| 5 | `NotConfigured` 不带消息 = 零日志 | 管道没了，item 照常「抓到」 |
+
+**五个的退出码都是 0，`finish_reason` 都是 `finished`。**
+
+第 5 篇是第 4 篇的成因。查一下 `FeedExporter` 就知道它有多清楚这件事：
+
+```python title="scrapy/extensions/feedexport.py"
+def _exporter_supported(self, format_: str) -> bool:
+    if format_ in self.exporters:
+        return True
+    logger.error("Unknown feed format: %(format)s", {"format": format_})   # ← 自己先打
+    return False
+
+# 调用处
+if not self._exporter_supported(feed_options["format"]):
+    raise NotConfigured                                                     # ← 裸的
+```
+
+**它的 `raise NotConfigured` 是裸的**（`feedexport.py` 的 505、507、509 三处都是），换句话说，靠 `MiddlewareManager` 那条 WARNING 是等不到的。第四篇里能看到那条 `ERROR: Unknown feed format`，是因为**校验函数在 raise 之前自己先打了一条**。
+
+这等于官方组件在用一个变通手法绕开本文说的这个坑——而且用的是 ERROR 级，比 WARNING 更响。你自己写组件时，要么学它先自己打日志，要么更简单：**给 `NotConfigured` 带上消息**。
+
+至于第四篇为什么还是那么难发现：那条 ERROR 出现在启动阶段，而失败的后果（目录是空的）要到结束时才显现。
+
+把五篇的教训压成一句：
+
+<Note>
+**不要用「有没有报错」判断任务成功，要用「该出现的东西出现了没有」。**
+
+对爬虫，最少断言四个数：
+
+```python
+assert stats["downloader/request_count"] > 0      # 请求发出去了
+assert stats["item_scraped_count"] > 0            # item 产出了
+assert 关键管道 in 已启用列表                       # 处理链还在
+assert stats.get("feedexport/success_count/...")  # 数据落地了
+```
+
+四行代码，盖住这五篇里的每一种失效。**它们都很便宜，省掉它们的代价是跑了三小时才发现什么都没发生。**
+</Note>
+
+---
+
+## 参考
+
+- Scrapy 文档：[NotConfigured](https://docs.scrapy.org/en/latest/topics/exceptions.html#notconfigured)
+- Scrapy 文档：[Item Pipeline](https://docs.scrapy.org/en/latest/topics/item-pipeline.html)
+- Scrapy 文档：[Extensions](https://docs.scrapy.org/en/latest/topics/extensions.html)
+- Scrapy 文档：[Signals](https://docs.scrapy.org/en/latest/topics/signals.html)
+- Python 文档：[BaseException.args](https://docs.python.org/zh-cn/3/library/exceptions.html#BaseException.args)（`raise X` 与 `raise X()` 的 args 都是空元组）
