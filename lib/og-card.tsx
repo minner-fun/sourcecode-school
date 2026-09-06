@@ -1,7 +1,7 @@
 import { ImageResponse } from 'next/og'
 import { readFile } from 'node:fs/promises'
 import { join } from 'node:path'
-import { site } from './site'
+import { categoryMap, site, type CategorySlug } from './site'
 
 /**
  * 分享图（Open Graph / Twitter card）的统一模板。
@@ -18,6 +18,35 @@ export const OG_SIZE = { width: 1200, height: 630 }
 
 const font = await readFile(join(process.cwd(), 'assets/NotoSansSC-subset.otf'))
 
+/**
+ * 取站点深色模式的调色板。
+ *
+ * 分享图在 satori 里渲染，读不到 CSS 变量，只能写死值——所以这里的每一个
+ * 都必须和 app/globals.css 的 --d-* 对应，改配色时两处一起改。
+ * 卡片走深色而不是站点默认的浅色：分享卡片出现在微信、知乎的白色信息流里，
+ * 深色更跳得出来，而且深色模式本来就是站点自己的一套皮，不算另起炉灶。
+ */
+const C = {
+  bg: '#101215',      // --d-bg
+  ink: '#e8e5df',     // --d-ink
+  muted: '#9aa0a8',   // --d-muted
+  line: '#2a2e34',    // --d-line
+  brand: '#e39a4a',   // --d-brand
+  alt: '#6fa9b6',     // --d-alt
+} as const
+
+/**
+ * 栏目色沿用站点徽章的三档。只用在徽章上——
+ * 顶栏、品牌方块、域名一律用赭石，不随栏目变。
+ * 分享卡出现在信息流里，被人一眼认出是谁比标明栏目重要得多；
+ * 让中性色的栏目把整张卡带灰，等于每三篇里有一篇不带品牌。
+ */
+const CATEGORY_COLOR: Record<CategorySlug, string> = {
+  reverse: C.brand,
+  teardown: C.alt,
+  engineering: C.muted,
+}
+
 /** 标题越长字号越小，保证三行以内放得下。 */
 function titleSize(title: string): number {
   const n = [...title].length
@@ -27,8 +56,14 @@ function titleSize(title: string): number {
   return 46
 }
 
-export function ogCard(opts: { title: string; kicker?: string; footer?: string }) {
-  const { title, kicker, footer } = opts
+export function ogCard(opts: {
+  title: string
+  category?: CategorySlug
+  footer?: string
+}) {
+  const { title, category, footer } = opts
+  const badge = category ? CATEGORY_COLOR[category] : C.brand
+
   return new ImageResponse(
     (
       <div
@@ -37,50 +72,82 @@ export function ogCard(opts: { title: string; kicker?: string; footer?: string }
           height: '100%',
           display: 'flex',
           flexDirection: 'column',
-          justifyContent: 'space-between',
-          background: 'linear-gradient(135deg, #0b1220 0%, #111a2e 60%, #16213a 100%)',
-          color: '#e8edf5',
-          padding: '64px 72px',
+          background: C.bg,
+          color: C.ink,
           fontFamily: 'Noto Sans SC',
         }}
       >
-        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 16 }}>
-            <div style={{ display: 'flex', width: 14, height: 14, borderRadius: 7, background: '#4fd1c5' }} />
-            <div style={{ display: 'flex', fontSize: 30, fontWeight: 600, letterSpacing: 1 }}>{site.name}</div>
-          </div>
-          {kicker && (
-            <div
-              style={{
-                display: 'flex',
-                fontSize: 24,
-                color: '#9fb0c8',
-                padding: '8px 18px',
-                borderRadius: 999,
-                border: '1.5px solid #2b3a55',
-              }}
-            >
-              {kicker}
-            </div>
-          )}
-        </div>
+        {/* 顶边赭石横杠：站点所有重点卡片都是这个语言（border-t-2 border-brand） */}
+        <div style={{ display: 'flex', height: 10, background: C.brand }} />
 
         <div
           style={{
             display: 'flex',
-            fontSize: titleSize(title),
-            fontWeight: 700,
-            lineHeight: 1.3,
-            letterSpacing: 0.5,
-            maxWidth: 1040,
+            flex: 1,
+            flexDirection: 'column',
+            justifyContent: 'space-between',
+            padding: '58px 72px 64px',
           }}
         >
-          {title}
-        </div>
+          <div
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'space-between',
+            }}
+          >
+            <div style={{ display: 'flex', alignItems: 'center', gap: 16 }}>
+              {/* 方块而非圆点，与导航栏的品牌标一致 */}
+              <div style={{ display: 'flex', width: 16, height: 16, background: C.brand }} />
+              <div style={{ display: 'flex', fontSize: 30, fontWeight: 600 }}>
+                {site.name}
+              </div>
+            </div>
+            {category && (
+              <div
+                style={{
+                  display: 'flex',
+                  fontSize: 24,
+                  color: badge,
+                  padding: '8px 18px',
+                  borderRadius: 6,
+                  border: `1.5px solid ${badge}`,
+                }}
+              >
+                {categoryMap[category].label}
+              </div>
+            )}
+          </div>
 
-        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-          <div style={{ display: 'flex', fontSize: 26, color: '#9fb0c8' }}>{footer ?? site.tagline}</div>
-          <div style={{ display: 'flex', fontSize: 26, color: '#4fd1c5', letterSpacing: 2 }}>{site.domain}</div>
+          <div
+            style={{
+              display: 'flex',
+              fontSize: titleSize(title),
+              fontWeight: 700,
+              lineHeight: 1.3,
+              letterSpacing: 0.5,
+              maxWidth: 1040,
+            }}
+          >
+            {title}
+          </div>
+
+          <div
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'space-between',
+              borderTop: `1px solid ${C.line}`,
+              paddingTop: 26,
+            }}
+          >
+            <div style={{ display: 'flex', fontSize: 26, color: C.muted }}>
+              {footer ?? site.tagline}
+            </div>
+            <div style={{ display: 'flex', fontSize: 26, color: C.brand, letterSpacing: 1 }}>
+              {site.domain}
+            </div>
+          </div>
         </div>
       </div>
     ),
