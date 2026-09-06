@@ -11,8 +11,8 @@ import fs from 'node:fs/promises'
 import path from 'node:path'
 import { promisify } from 'node:util'
 import matter from 'gray-matter'
+import os from 'node:os'
 import { REPO, PUBLIC_DIR, site, postPath, exists } from './lib.ts'
-import { makeCover } from './cover.ts'
 import { addDraft, uploadContentImage, uploadThumb } from './wechat.ts'
 
 const exec = promisify(execFile)
@@ -62,15 +62,29 @@ export async function draftToWechat(
 
   const { html, images } = await swapImages(await fs.readFile(exported, 'utf8'))
 
-  const { site: cfg, categoryMap } = await site()
-  const cover = await makeCover({
-    title: data.title,
-    kicker: categoryMap[data.category as keyof typeof categoryMap]?.en,
-    series: data.seriesTitle,
-  })
-  const coverBytes = (await fs.stat(cover)).size
+  const { site: cfg } = await site()
+
+  /*
+   * 封面直接取站点自己生成的 OG 分享图（Next 的 opengraph-image 约定，
+   * lib/og-card.tsx 按标题渲染 1200×630）。
+   *
+   * 不另做一套：站点已经有这张图了，再画一版意味着两处视觉要同步维护，
+   * 迟早走样。1200×630 是 1.90:1，公众号列表按 2.35:1 居中裁 ——
+   * 卡片上下留白足够，品牌行和页脚都在裁切范围内。
+   */
+  const ogUrl = `https://${cfg.domain}/posts/${slug}/opengraph-image`
+  const res = await fetch(ogUrl, { signal: AbortSignal.timeout(60_000) })
+  if (!res.ok) throw new Error(`取封面失败：${ogUrl} 返回 ${res.status}`)
+  const coverBuf = Buffer.from(await res.arrayBuffer())
+  if (coverBuf.length < 3000) {
+    throw new Error(`封面只有 ${coverBuf.length} 字节，多半没渲染出来`)
+  }
+  const coverDir = await fs.mkdtemp(path.join(os.tmpdir(), 'mp-cover-'))
+  const cover = path.join(coverDir, `${slug}.png`)
+  await fs.writeFile(cover, coverBuf)
+  const coverBytes = coverBuf.length
   const thumb = await uploadThumb(cover)
-  await fs.rm(path.dirname(cover), { recursive: true, force: true })
+  await fs.rm(coverDir, { recursive: true, force: true })
 
   const sourceUrl = `https://${cfg.domain}/posts/${slug}`
   const mediaId = await addDraft({

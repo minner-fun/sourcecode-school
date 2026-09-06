@@ -118,8 +118,12 @@ get_writing_guide → list_taxonomy → draft_post
 
 ### 封面
 
-`mcp/cover.ts` 用 headless Chrome 截 `mcp/assets/cover.html`，900×383
-（公众号推荐的 2.35:1）。改配色只动模板，不动代码。
+直接取站点自己生成的 OG 分享图（`/posts/<slug>/opengraph-image`，
+由 `lib/og-card.tsx` 按标题渲染 1200×630）。
+
+**不另做一套。** 一度用 headless Chrome 截了个专用模板，后来发现站点已经
+有这张图了 —— 两套视觉要同步维护，迟早走样。1200×630 是 1.90:1，
+公众号列表按 2.35:1 居中裁，卡片上下留白足够，品牌行和页脚都在裁切范围内。
 
 ## 安全约束
 
