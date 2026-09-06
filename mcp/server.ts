@@ -18,7 +18,6 @@ import {
   site,
   posts,
   checkSlug,
-  scanCommercial,
   validateAll,
   buildFrontmatter,
   postPath,
@@ -84,10 +83,10 @@ server.registerTool(
       '- `<Stats items={[{ label, value }]} />` 一组关键数字',
       '- 代码块支持 ```lang title="文件名" showLineNumbers，{3-5} 高亮行，/token/ 高亮词',
       '',
-      '## 合规约束（重要）',
-      '站点走个人 ICP 备案，**个人主体不得含经营性内容**。',
-      '正文不要出现服务报价、接单入口、付费服务一类表述，',
-      '也不要写「本站不承接 X」这种反向自证——那同样暗示站点在接活。',
+      '## 关于自家项目',
+      '可以写自己做的东西，也可以提它怎么收费、放购买入口——站点不备案，没有这方面限制。',
+      '唯一的要求是**文章本身得站得住**：讲清楚怎么做的、给出可复现的部分，',
+      '让不打算用你产品的人读完也有收获。纯产品介绍不发，那种东西没有搜索长尾。',
       '',
       '## 发布后的分发顺序',
       '先发本站 → 提交搜索引擎收录 → 隔一两天再发公众号/知乎，且注明原文链接。',
@@ -222,7 +221,6 @@ server.registerTool(
     await fs.writeFile(file, fm + '\n' + args.body.trim() + '\n', 'utf8')
 
     const check = await validateAll()
-    const hits = scanCommercial(args.title + args.excerpt + args.body)
     const notes = [
       `✅ 已写入 content/posts/${args.slug}.mdx（草稿，未提交）`,
       `预览：http://localhost:3000/posts/${args.slug}`,
@@ -230,11 +228,6 @@ server.registerTool(
         ? `站点解析通过，当前共 ${check.count} 篇`
         : `⚠ 站点解析报错，发布前必须修：${check.error}`,
     ]
-    if (hits.length) {
-      notes.push(
-        `⚠ 正文命中经营性措辞 ${hits.join('、')}——站点走个人备案，这类表述可能导致驳回，建议改写`,
-      )
-    }
     // 草稿阶段只提示：图还没画出来是常态，到 publish_post 才会真的拦
     const miss = referencedAssets(args.body).missing
     if (miss.length) {
@@ -305,15 +298,6 @@ server.registerTool(
       `✅ 已更新 content/posts/${args.slug}.mdx`,
       check.ok ? `站点解析通过（${check.count} 篇）` : `⚠ 解析报错：${check.error}`,
     ]
-    // draft_post 会扫，改稿这条路原先不扫——等于「先写干净再改脏」能整条绕过
-    const hits = scanCommercial(
-      [args.title, args.excerpt, args.body].filter(Boolean).join('\n'),
-    )
-    if (hits.length) {
-      notes.push(
-        `⚠ 改动命中经营性措辞 ${hits.join('、')}——站点走个人备案，建议改写`,
-      )
-    }
     const miss = referencedAssets(await fs.readFile(file, 'utf8')).missing
     if (miss.length) {
       notes.push(`⚠ 引用了 public/ 下不存在的文件，发布前必须补上：${miss.join('、')}`)
@@ -359,12 +343,6 @@ server.registerTool(
     inputSchema: {
       slug: z.string().describe('要发布的文章 slug'),
       message: z.string().optional().describe('自定义提交信息，缺省用「发布：标题」'),
-      allowCommercial: z
-        .boolean()
-        .optional()
-        .describe(
-          '确认经营性措辞是误报时置 true，跳过该检查。缺省 false，命中即中止发布。',
-        ),
       skipIndexNow: z
         .boolean()
         .optional()
@@ -385,7 +363,7 @@ server.registerTool(
       readOnlyHint: false,
     },
   },
-  async ({ slug, message, allowCommercial, skipIndexNow }) => {
+  async ({ slug, message, skipIndexNow }) => {
     const file = postPath(slug)
     if (!(await exists(file))) return text(`❌ 找不到 ${slug}.mdx`)
 
@@ -400,24 +378,6 @@ server.registerTool(
     }
 
     const raw = await fs.readFile(file, 'utf8')
-
-    /*
-     * 经营性措辞必须拦在 push 之前。draft_post 那里只是提示就够了——草稿还能改；
-     * 到了这里推完就对外可见，事后提示没有意义。
-     * 站点走个人 ICP 备案，个人主体不得含经营性内容，这是唯一真会导致驳回的检查项。
-     * 正则难免误报（讲定价的文章本来就会出现「付费」），所以给一个显式放行开关，
-     * 而不是默认放过。
-     */
-    if (!allowCommercial) {
-      const hits = scanCommercial(raw)
-      if (hits.length) {
-        return text(
-          `❌ 命中经营性措辞 ${hits.join('、')}，已中止发布。\n` +
-            '站点走个人 ICP 备案，个人主体不得含经营性内容。\n' +
-            '确认是误报的话，带 allowCommercial: true 重新调用。',
-        )
-      }
-    }
 
     /*
      * 正文引用的图片、附件必须和文章一起提交。

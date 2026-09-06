@@ -73,20 +73,6 @@ export function checkSlug(slug: string): string[] {
   return errors
 }
 
-/**
- * 经营性措辞扫描。
- *
- * 站点走个人 ICP 备案，个人主体不得含经营性内容——服务报价、接单入口、
- * 付费服务都可能被判定为经营性，导致驳回或事后注销。
- * 这条检查是为了守住那个约束，命中不阻断发布，但必须提示。
- */
-const COMMERCIAL =
-  /接单|承接|报价|收费|付费|下单|购买|服务项目|合作流程|套餐|计价|商城/g
-
-export function scanCommercial(text: string): string[] {
-  return [...new Set(text.match(COMMERCIAL) ?? [])]
-}
-
 /** 跑一遍站点自己的解析器，把构建时才会炸的问题提前暴露出来 */
 export async function validateAll(): Promise<
   { ok: true; count: number } | { ok: false; error: string }
