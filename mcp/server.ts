@@ -513,7 +513,7 @@ server.registerTool(
 
     lines.push(
       '',
-      '下一步：百度需要单独提交（不吃 IndexNow），隔一两天再发公众号/知乎并注明原文链接。',
+      '下一步：隔一两天用 draft_to_wechat 同步公众号，正文注明原文链接。',
     )
     return text(lines.join('\n'))
   },

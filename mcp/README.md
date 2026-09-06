@@ -65,7 +65,11 @@ get_writing_guide → list_taxonomy → draft_post
 
 ## IndexNow
 
-发布后主动把新地址推给 Bing / Yandex（百度不吃这个协议，仍要单独提交）。
+发布后主动把新地址推给 Bing / Yandex。
+
+搜索引擎这块到此为止：Google 靠 Search Console 提交的 sitemap，
+Bing / Yandex 靠 IndexNow 实时推。**百度已放弃**——站点未备案且部署在
+海外节点，百度对这类站压权重，收录概率低到不值得为它单独做一套推送。
 新域名的自然抓取频率很低，靠引擎自己来爬 sitemap 要等几天。
 
 放在 MCP 而不是站点里，是因为站点全静态、构建完就没有运行时，
