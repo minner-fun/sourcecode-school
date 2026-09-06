@@ -5,6 +5,11 @@ const config: NextConfig = {
   // 需要纯静态产物时打开下面一行，产物在 out/：
   // output: 'export',
   outputFileTracingExcludes: { '*': ['./example/**'] },
+  // 分享图用 readFile 读中文字体；显式声明一次，避免文件追踪漏掉、线上函数里找不到字体。
+  outputFileTracingIncludes: {
+    '/opengraph-image': ['./assets/**'],
+    '/posts/[slug]/opengraph-image': ['./assets/**'],
+  },
 
   // 站点从「内容 + 接单」收敛为纯内容站，已删页面做永久跳转，
   // 避免外部链接和已被收录的 URL 变成 404。

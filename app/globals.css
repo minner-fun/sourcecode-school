@@ -16,7 +16,8 @@
   --ink: #14161a;
   --ink-soft: #3c424a;
   --muted: #5f6670;
-  --faint: #949aa3;
+  /* 浅底上要 ≥4.5:1（WCAG AA）：#949aa3 只有 2.7，Lighthouse 全站命中；深色有独立的 --d-faint */
+  --faint: #6b7280;
 
   --line: #e4e1d9;
   --line-soft: #efece5;

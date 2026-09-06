@@ -44,13 +44,16 @@ export async function generateMetadata({
       publishedTime: post.date,
       authors: [site.author.name],
       tags: post.tags,
-      images: post.cover ? [post.cover] : undefined,
+      // 没封面就用按标题生成的分享图；写 undefined 会把文件约定的 opengraph-image 也压掉。
+      images: [post.cover ?? `/posts/${post.slug}/opengraph-image`],
     },
     twitter: {
-      card: post.cover ? 'summary_large_image' : 'summary',
+      // 没封面也有按标题生成的分享图（opengraph-image.tsx），一律用大图卡。
+      card: 'summary_large_image',
       title: post.title,
       description: post.excerpt,
-      images: post.cover ? [post.cover] : undefined,
+      // 没封面就用按标题生成的分享图；写 undefined 会把文件约定的 opengraph-image 也压掉。
+      images: [post.cover ?? `/posts/${post.slug}/opengraph-image`],
     },
   }
 }
@@ -80,7 +83,8 @@ export default async function PostPage({
     author: { '@type': 'Person', name: site.author.name },
     publisher: { '@type': 'Organization', name: site.name },
     mainEntityOfPage: `${siteUrl}/posts/${post.slug}`,
-    ...(post.cover ? { image: `${siteUrl}${post.cover}` } : {}),
+    // Article 富媒体结果要求 image；没封面就用按标题生成的分享图。
+    image: post.cover ? `${siteUrl}${post.cover}` : `${siteUrl}/posts/${post.slug}/opengraph-image`,
   }
 
   return (
