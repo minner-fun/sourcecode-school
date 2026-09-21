@@ -16,6 +16,12 @@ export const tools = [
     status: 'ready',
   },
   {
+    slug: 'json',
+    title: 'JSON 格式化与校验',
+    desc: '树形查看、格式化、压缩、转义，点节点取访问路径；大数不丢精度，自动剥 JSONP 与转义。',
+    status: 'ready',
+  },
+  {
     slug: 'js-deobfuscate',
     title: 'JS 反混淆（AST）',
     desc: '常量折叠、字符串数组还原、控制流平坦化展开。',
