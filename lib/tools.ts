@@ -12,8 +12,8 @@ export const tools = [
   {
     slug: 'timestamp',
     title: '时间戳转换',
-    desc: '秒/毫秒时间戳与日期互转，带常见时区。',
-    status: 'planned',
+    desc: '时间戳与日期互转，自动识别秒 / 毫秒 / 微秒 / 纳秒，支持时区切换与批量转换。',
+    status: 'ready',
   },
   {
     slug: 'js-deobfuscate',
